@@ -1,14 +1,15 @@
 {
   "expo": {
-    "name": "ecom-mobile",
+    "name": "Prem Packaging",
     "slug": "ecom-mobile",
     "version": "1.0.0",
+    "scheme": "prempackaging",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/splash-icon.png",
+      "image": "./assets/prem-logo.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -21,10 +22,19 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.ecommobile"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      "expo-font",
+      "expo-web-browser"
+    ],
+    "extra": {
+      "apiBaseUrl": "http://10.0.2.2:5000/premind/api"
     }
   }
 }
