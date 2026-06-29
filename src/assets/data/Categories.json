@@ -1,0 +1,36 @@
+[
+  {
+    "id": 1,
+    "name": "Corrugated Box",
+    "category_id": "6557deab301ec4f2f4266131",
+    "image": "https://prem-industries-ecom-images.s3.ap-south-1.amazonaws.com/corugatedBox.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA5L5MJZP353OM6Q2K%2F20241022%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20241022T192459Z&X-Amz-Expires=3600&X-Amz-Signature=369726f23fd00a973278129ca314ee69df1e65c8317d44e86d260d9c4ceba938&X-Amz-SignedHeaders=host&x-id=GetObject"
+  },
+  {
+    "id": 2,
+    "name": "Label",
+    "category_id": "6557deb6301ec4f2f4266135",
+    "image": "https://prem-industries-ecom-images.s3.ap-south-1.amazonaws.com/label.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA5L5MJZP353OM6Q2K%2F20241022%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20241022T185503Z&X-Amz-Expires=3600&X-Amz-Signature=3517137bc1f4b3b094a9a6bef909e520c796db3a22c3b5da655bb41ba962b3ab&X-Amz-SignedHeaders=host&x-id=GetObject"
+  },
+  {
+    "id": 3,
+    "name": "Paper Bag",
+    "category_id": "6557df46301ec4f2f4266139",
+    "image": "https://prem-industries-ecom-images.s3.ap-south-1.amazonaws.com/paperBag.jpg?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA5L5MJZP353OM6Q2K%2F20241022%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20241022T185503Z&X-Amz-Expires=3600&X-Amz-Signature=0af8a73ec2403f73f19f8687fb1129319bb159a108e6536afc9e3ed029d918c1&X-Amz-SignedHeaders=host&x-id=GetObject"
+  },
+  {
+    "id": 4,
+    "name": "Poly Bag",
+    "category_id": "6557df4f301ec4f2f426613d",
+    "image": "https://prem-industries-ecom-images.s3.ap-south-1.amazonaws.com/polyBag.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=AKIA5L5MJZP353OM6Q2K%2F20241022%2Fap-south-1%2Fs3%2Faws4_request&X-Amz-Date=20241022T185503Z&X-Amz-Expires=3600&X-Amz-Signature=e3afc5fe222139484b3ea8e87cd1bb5da0cb0ab547470fbe590e43c05d88e1a3&X-Amz-SignedHeaders=host&x-id=GetObject"
+  },
+  {
+    "id": 8,
+    "name": "Tape",
+    "category_ids": [
+      "6557df64301ec4f2f4266141",
+      "6557df71301ec4f2f4266145",
+      "6642e8f665f20fe41ab417bc"
+    ],
+    "image": "https://prem-industries-ecom-images.s3.ap-south-1.amazonaws.com/tape.jpg"
+  }
+]

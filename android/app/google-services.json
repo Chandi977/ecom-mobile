@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "601110091773",
+    "project_id": "prem-packaging-42bb5",
+    "storage_bucket": "prem-packaging-42bb5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:601110091773:android:538e78a745e2734073eb94",
+        "android_client_info": {
+          "package_name": "com.store.prempackaging"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDo6vNscT8NU-_EzbU2cC5Uc_e-sRu1gUs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
