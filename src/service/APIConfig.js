@@ -26,6 +26,10 @@ export const API_ENDPOINTS = {
     GET_ALL_CATEGORIES: 'category/all',
   },
 
+  BRANDS: {
+    GET_ALL_BRANDS: 'brand/all',
+  },
+
   CART: {
     GET_CART_PRODUCTS: 'cart/',
     ADD_TO_CART: 'AddtoCart',

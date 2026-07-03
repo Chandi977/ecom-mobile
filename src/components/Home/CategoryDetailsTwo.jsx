@@ -14,6 +14,10 @@ import ApiService from '../../service/APIService';
 import debounce from 'lodash.debounce';
 import { useNavigation } from '@react-navigation/native';
 import WrapperContainer from '../../utils/WrapperContainer';
+import {
+  buildEntityNameById,
+  getProductBrandName,
+} from '../../utils/productFields';
 
 const CategoryDetailsTwo = ({ route }) => {
   const navigation = useNavigation();
@@ -21,8 +25,16 @@ const CategoryDetailsTwo = ({ route }) => {
   const [filteredData, setFilteredData] = useState(route.params.data);
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState([]);
+  const [brandNameById, setBrandNameById] = useState({});
   const { categories, data, option } = route.params;
   console.log(data, 'line 24');
+  // Ajio gate resolved by brand name (from nav params or the fetched id->name
+  // map), so no brand ObjectId is hardcoded.
+  const isAjioBrand =
+    (categories?.name || brandNameById[categories?.brandId] || '')
+      .toString()
+      .trim()
+      .toLowerCase() === 'ajio';
   const [activeFilters, setActiveFilters] = useState({
     sort: null,
     size: { length: 0, width: 0, height: 0 },
@@ -163,7 +175,7 @@ const CategoryDetailsTwo = ({ route }) => {
   };
 
   const renderBrandMessage = () => {
-    if (categories?.brandId === '6582c8580ab82549a084894f') {
+    if (isAjioBrand) {
       return (
         <View
           style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
@@ -187,29 +199,23 @@ const CategoryDetailsTwo = ({ route }) => {
     return null;
   };
 
-  const mapBrandName = brandId => {
-    switch (brandId) {
-      case '6557dbbc301ec4f2f4266107':
-        return 'Flipkart';
-      case '6557dbcc301ec4f2f426610b':
-        return 'Myntra';
-      case '6557dbad301ec4f2f4266103':
-        return 'Amazon';
-      case '6582c8580ab82549a084894f':
-        return 'Ajio';
-      case '6557dbf9301ec4f2f426611e':
-        return 'Rollabel';
-      case '6557dc10301ec4f2f4266122':
-        return 'Pack-Secure';
-      case '6582c8750ab82549a0848953':
-        return 'PackPro';
-      default:
-        return 'Unknown Brand';
-    }
-  };
+  useEffect(() => {
+    const getAllBrands = async () => {
+      try {
+        const response = await ApiService.GET_ALL_BRANDS();
+        if (response?.data) {
+          setBrandNameById(buildEntityNameById(response.data));
+        }
+      } catch (error) {
+        console.log('Error fetching Brands', error?.message);
+      }
+    };
+
+    getAllBrands();
+  }, []);
 
   const getDropdownText = item => {
-    const brandName = mapBrandName(item.brand);
+    const brandName = getProductBrandName(item, brandNameById) || 'Unknown Brand';
     return `${brandName} - ${item.name} - ${item.model}`;
   };
   const filteredResults = searchResults.filter(item => {
@@ -284,7 +290,7 @@ const CategoryDetailsTwo = ({ route }) => {
             handleSelectProduct={handleSelectProduct}
           />
         </View>
-        {categories?.brandId === '6582c8580ab82549a084894f' ? (
+        {isAjioBrand ? (
           renderBrandMessage()
         ) : (
           <View style={styles.productHolder}>

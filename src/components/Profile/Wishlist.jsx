@@ -21,6 +21,10 @@ import ApiService from '../../service/APIService';
 import WrapperContainer from '../../utils/WrapperContainer';
 import StorageService from '../../utils/storageService';
 import { parseStoredUser, showSuccessMessage } from '../../utils/HelperFunction';
+import {
+  buildEntityNameById,
+  getProductBrandName,
+} from '../../utils/productFields';
 
 const Wishlist = () => {
   const navigation = useNavigation();
@@ -30,42 +34,20 @@ const Wishlist = () => {
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(null);
   const placeholderImage = 'https://prempackaging.com/img/logo.png';
-
-  const brand = [
-    {
-      id: '6557dbad301ec4f2f4266103',
-      name: 'Amazon',
-    },
-    {
-      id: '6557dbbc301ec4f2f4266107',
-      name: 'Flipkart',
-    },
-    {
-      id: '6557dbcc301ec4f2f426610b',
-      name: 'Myntra',
-    },
-    {
-      id: '6557dbf9301ec4f2f426611e',
-      name: 'Rollabel',
-    },
-    {
-      id: '6557dc10301ec4f2f4266122',
-      name: 'Pack Secure',
-    },
-    {
-      id: '6582c8580ab82549a084894f',
-      name: 'Ajio',
-    },
-    {
-      id: '6582c8750ab82549a0848953',
-      name: 'PackPro',
-    },
-  ];
+  const [brandNameById, setBrandNameById] = useState({});
 
   useEffect(() => {
     fetchLoginData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isFocused]);
+
+  useEffect(() => {
+    ApiService.GET_ALL_BRANDS()
+      .then(res => {
+        if (res?.data) setBrandNameById(buildEntityNameById(res.data));
+      })
+      .catch(error => console.log('Error fetching Brands', error?.message));
+  }, []);
 
   const fetchLoginData = async () => {
     try {
@@ -180,26 +162,7 @@ const Wishlist = () => {
                           { color: Colors.forgetPassword },
                         ]}
                       >
-                        {(item?.product?.brand === '6557dbad301ec4f2f4266103' &&
-                          'Amazon') ||
-                          (item?.product?.brand ===
-                            '6557dbbc301ec4f2f4266107' &&
-                            'Flipkart') ||
-                          (item?.product?.brand ===
-                            '6557dbcc301ec4f2f426610b' &&
-                            'Myntra') ||
-                          (item?.product?.brand ===
-                            '6557dbf9301ec4f2f426611e' &&
-                            'Rollabel') ||
-                          (item?.product?.brand ===
-                            '6557dc10301ec4f2f4266122' &&
-                            'Pack Secure') ||
-                          (item?.product?.brand ===
-                            '6582c8580ab82549a084894f' &&
-                            'Ajio') ||
-                          (item?.product?.brand ===
-                            '6582c8750ab82549a0848953' &&
-                            'PackPro')}{' '}
+                        {getProductBrandName(item?.product, brandNameById) || ''}{' '}
                         {item?.product?.name} {item?.product?.model}
                         {/* {item?.product?.name} {item?.product?.slug} */}
                       </Text>

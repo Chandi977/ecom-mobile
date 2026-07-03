@@ -39,7 +39,10 @@ import WrapperContainer from '../../utils/WrapperContainer';
 import StorageService from '../../utils/storageService';
 import { parseStoredUser } from '../../utils/HelperFunction';
 import {
+  buildEntityNameById,
+  getEntityIdByName,
   getProductBrandId,
+  getProductBrandName,
   getProductCategoryId,
 } from '../../utils/productFields';
 
@@ -58,27 +61,8 @@ const Home = () => {
   const [searchResults, setSearchResults] = useState([]);
   const [dealProduct, setDealProduct] = useState([]);
   const [updateStoreUrl, setUpdateStoreUrl] = useState(null);
-
-  const mapBrandName = brandId => {
-    switch (brandId) {
-      case '6926d6bad53f3a772c6e978c':
-        return 'Flipkart';
-      case '6557dbcc301ec4f2f426610b':
-        return 'Myntra';
-      case '69268af9d53f3a772c6bccc2':
-        return 'Amazon';
-      case '6582c8580ab82549a084894f':
-        return 'Ajio';
-      case '6557dbf9301ec4f2f426611e':
-        return 'Rollabel';
-      case '6557dc10301ec4f2f4266122':
-        return 'Pack-Secure';
-      case '6582c8750ab82549a0848953':
-        return 'PackPro';
-      default:
-        return 'Unknown Brand';
-    }
-  };
+  const [brandNameById, setBrandNameById] = useState({});
+  const [brandList, setBrandList] = useState([]);
 
   const searchProducts = useCallback(async query => {
     const data = { search: query };
@@ -115,7 +99,7 @@ const Home = () => {
   };
 
   const getDropdownText = item => {
-    const brandName = mapBrandName(item.brand);
+    const brandName = getProductBrandName(item, brandNameById) || 'Unknown Brand';
     return `${brandName} - ${item.name} - ${item.model}`;
   };
 
@@ -165,7 +149,17 @@ const Home = () => {
 
   const getAllProducts = async () => {
     try {
-      const response = await ApiService.GET_ALL_PRODUCTS();
+      const [response, brandResponse] = await Promise.all([
+        ApiService.GET_ALL_PRODUCTS(),
+        ApiService.GET_ALL_BRANDS().catch(error => {
+          console.log('Error fetching Brands', error?.message);
+          return null;
+        }),
+      ]);
+      if (brandResponse?.data) {
+        setBrandNameById(buildEntityNameById(brandResponse.data));
+        setBrandList(brandResponse.data);
+      }
       if (response && response?.data) {
         const filteredPopularProducts = response.data.filter(
           item => item.top_product === true,
@@ -219,11 +213,13 @@ const Home = () => {
   const handleBrandCLicked = async brand => {
     setNavigating(true);
     try {
+      // Resolve the real brand id from /brand/all by name (no hardcoded ids).
+      const resolvedBrandId = getEntityIdByName(brandList, brand.name);
       setTimeout(async () => {
         navigation.navigate('CategoryDetailsTwo', {
-          categories: brand,
+          categories: { ...brand, brandId: resolvedBrandId },
           data: allProducts.filter(
-            item => getProductBrandId(item) === brand.brandId,
+            item => getProductBrandId(item) === resolvedBrandId,
           ),
           option: 'brand',
         });

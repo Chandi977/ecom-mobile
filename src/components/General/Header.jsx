@@ -25,10 +25,12 @@ import {
 } from "../../utils/responsiveSize";
 import FontFamily from "../../utils/FontFamily";
 import {
+  getEntityIdByName,
   getProductBrandId,
   getProductCategoryId,
   getProductSubCategoryId,
 } from "../../utils/productFields";
+import ApiService from "../../service/APIService";
 const Header = ({
   title,
   onSort,
@@ -51,6 +53,15 @@ const Header = ({
   const [selectedSubCategory, setSelectedSubCategory] = useState([]);
   const [availableCategories, setAvailableCategories] = useState([]);
   const [flattenedCategories, setFlattenedCategories] = useState([]);
+  const [brandList, setBrandList] = useState([]);
+
+  useEffect(() => {
+    ApiService.GET_ALL_BRANDS()
+      .then(res => {
+        if (res?.data) setBrandList(res.data);
+      })
+      .catch(error => console.log("Error fetching Brands", error?.message));
+  }, []);
   console.log(selectedSubCategory, "line 48");
 
   const getSubCategoriesForBrandFilter = () => {
@@ -182,10 +193,16 @@ const Header = ({
   };
 
   const filteredBrandData = React.useMemo(() => {
-    return brandData.filter((brand) =>
-      availableBrandIds.includes(brand.brandId)
-    );
-  }, [availableBrandIds]);
+    return brandData
+      .map((brand) => ({
+        ...brand,
+        // Resolve the real brand id from /brand/all by name (no hardcoded ids).
+        brandId: getEntityIdByName(brandList, brand.name),
+      }))
+      .filter(
+        (brand) => brand.brandId && availableBrandIds.includes(brand.brandId)
+      );
+  }, [availableBrandIds, brandList]);
 
   const handleApplyFilter = () => {
     // console.log(selectedCategories, "Line 60");

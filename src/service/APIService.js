@@ -192,6 +192,10 @@ const ApiService = {
     return ApiService.get(API_ENDPOINTS.CATEGORIES.GET_ALL_CATEGORIES);
   },
 
+  async GET_ALL_BRANDS() {
+    return ApiService.get(API_ENDPOINTS.BRANDS.GET_ALL_BRANDS);
+  },
+
   // CART
   async GET_CART_PRODUCTS(id) {
     return ApiService.get(`${API_ENDPOINTS.CART.GET_CART_PRODUCTS}${id}`);
