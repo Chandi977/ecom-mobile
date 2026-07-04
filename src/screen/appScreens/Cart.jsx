@@ -29,6 +29,9 @@ import WrapperContainer from '../../utils/WrapperContainer';
 import StorageService from '../../utils/storageService';
 import { parseStoredUser, showErrorMessage } from '../../utils/HelperFunction';
 import GuestCartService from '../../utils/GuestCartService';
+import CartCacheService from '../../utils/CartCacheService';
+import { CartSkeleton } from '../../components/General/Skeleton';
+import { FadeInUp, PressableScale } from '../../components/General/Motion';
 
 export default function Cart() {
   const navigation = useNavigation();
@@ -39,7 +42,7 @@ export default function Cart() {
   const [showClearCart, setShowClearCart] = useState(false);
   const [loading, setLoading] = useState(false);
   const [refresh, setRefresh] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+  const [initialLoading, setInitialLoading] = useState(true);
   const couponRef = useRef(null);
   const [showCouponModal, setShowCouponModal] = useState(false);
   const [loaderForViewCoupon, setLoaderForViewCoupon] = useState(false);
@@ -64,16 +67,29 @@ export default function Cart() {
       if (userData && userData?._id) {
         setIsGuest(false);
         setUser(userData);
+        // Paint the last-known cart instantly from cache, then revalidate from
+        // the server in the background. Only show the skeleton on a cold start
+        // where we have no cached snapshot yet.
+        const cached = await CartCacheService.getProducts(userData._id);
+        if (cached) {
+          setCartProducts(cached);
+          setShowClearCart(cached.length > 0);
+          setInitialLoading(false);
+        } else {
+          setInitialLoading(true);
+        }
         getProductsInCart(userData._id);
       } else {
         setIsGuest(true);
         setUser(null);
         await loadGuestCart();
+        setInitialLoading(false);
       }
 
       setLoading(false);
     } catch (e) {
       console.log('Error fetching data:', e);
+      setInitialLoading(false);
     }
   };
 
@@ -91,13 +107,22 @@ export default function Cart() {
     try {
       setLoading(true);
       const response = await ApiService.GET_CART_PRODUCTS(id);
-      if (response && response?.data?.products) {
-        setCartProducts(response?.data?.products);
-        setShowClearCart(true);
-        setLoading(false);
+      if (response?.data?.products) {
+        setCartProducts(response.data.products);
+        setShowClearCart(response.data.products.length > 0);
+        await CartCacheService.setProducts(id, response.data.products);
+      } else if (response?.data) {
+        // Valid response, but the cart is empty on the server.
+        setCartProducts([]);
+        setShowClearCart(false);
+        await CartCacheService.setProducts(id, []);
       }
+      // A null/errored response leaves the cached cart in place.
     } catch (e) {
       console.log(e);
+    } finally {
+      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -125,6 +150,8 @@ export default function Cart() {
       console.log(response);
       if (response?.success) {
         setCartProducts([]);
+        setShowClearCart(false);
+        await CartCacheService.setProducts(userId, []);
         DeviceEventEmitter.emit('cartUpdated');
         Alert.alert('Cart', 'Your cart is empty!!', [{ text: 'OK' }]);
       }
@@ -290,12 +317,14 @@ export default function Cart() {
         >
           <View style={styles.content}>
             <>
-              {cartProducts.length > 0 ? (
+              {initialLoading ? (
+                <CartSkeleton />
+              ) : cartProducts.length > 0 ? (
                 <View>
                   {cartProducts.map((item, index) => {
                     return (
-                      <>
-                        <View key={index} style={styles.card}>
+                      <FadeInUp key={index} delay={Math.min(index, 6) * 60}>
+                        <View style={styles.card}>
                           <View style={styles.cartImageHolder}>
                             <FastImage
                               style={styles.cartImage}
@@ -335,7 +364,7 @@ export default function Cart() {
                           </Text>
                         </View>
                         <View style={styles.divider} />
-                      </>
+                      </FadeInUp>
                     );
                   })}
                   <View style={styles.cartTotalHolder}>
@@ -431,15 +460,14 @@ export default function Cart() {
                       </View>
                       {/* Checkout Button */}
                       {cartProducts.length > 0 && (
-                        <TouchableOpacity
-                          activeOpacity={0.9}
+                        <PressableScale
                           onPress={handleCheckOut}
                           style={styles.checkOutButton}
                         >
                           <Text style={styles.checkOutButtonText}>
                             Process to checkout
                           </Text>
-                        </TouchableOpacity>
+                        </PressableScale>
                       )}
                     </View>
                   </View>

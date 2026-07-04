@@ -29,6 +29,7 @@ import {
   showSuccessMessage,
 } from '../../utils/HelperFunction';
 import GuestCartService from '../../utils/GuestCartService';
+import { FadeInUp, PressableScale, Pop } from '../General/Motion';
 
 const HomePopularProduct = ({
   data,
@@ -238,8 +239,8 @@ const HomePopularProduct = ({
       >
         {visibleProducts.map((item, index) => (
           <React.Fragment key={index}>
-            <TouchableOpacity
-              key={index}
+            <FadeInUp delay={Math.min(index, 6) * 70}>
+            <PressableScale
               style={[styles.item, isBuyItWith && styles.buyItWithItem]}
               onPress={() => navigation.push('ProductDetails', { item })}
             >
@@ -284,9 +285,11 @@ const HomePopularProduct = ({
                     width: '100%',
                   }}
                 >
-                  <Text style={styles.mrpText}>
-                    ₹{Math.round(item?.priceList?.[0]?.MRP)}
-                  </Text>
+                  {item?.priceList?.[0]?.MRP > item?.priceList?.[0]?.SP && (
+                    <Text style={styles.mrpText}>
+                      ₹{Math.round(item?.priceList?.[0]?.MRP)}
+                    </Text>
+                  )}
                   <Text
                     style={[
                       styles.priceText,
@@ -299,20 +302,22 @@ const HomePopularProduct = ({
                   </Text>
                 </View>
               </View>
-              <View style={styles.discountHolder}>
-                <View style={styles.offerView}>
-                  <Text style={styles.offerText}>
-                    {parseInt(
-                      ((item?.priceList[0]?.MRP - item?.priceList[0]?.SP) /
-                        item?.priceList[0]?.MRP) *
-                        100,
-                      10,
-                    )}
-                    %{'\n'}
-                    OFF
-                  </Text>
+              {item?.priceList?.[0]?.MRP > item?.priceList?.[0]?.SP && (
+                <View style={styles.discountHolder}>
+                  <View style={styles.offerView}>
+                    <Text style={styles.offerText}>
+                      {parseInt(
+                        ((item?.priceList[0]?.MRP - item?.priceList[0]?.SP) /
+                          item?.priceList[0]?.MRP) *
+                          100,
+                        10,
+                      )}
+                      %{'\n'}
+                      OFF
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
               <TouchableOpacity
                 style={[
                   styles.heartIconHolder,
@@ -322,13 +327,15 @@ const HomePopularProduct = ({
                   handleSaveToWishList(item);
                 }}
               >
-                <AntDesign
-                  name={isItemInWishlist(item?._id) ? 'heart' : 'heart'}
-                  size={isBuyItWith ? moderateScale(18) : moderateScale(25)}
-                  color={
-                    isItemInWishlist(item?._id) ? Colors.red : Colors.text_grey
-                  }
-                />
+                <Pop trigger={isItemInWishlist(item?._id)} peak={1.35}>
+                  <AntDesign
+                    name={isItemInWishlist(item?._id) ? 'heart' : 'hearto'}
+                    size={isBuyItWith ? moderateScale(18) : moderateScale(25)}
+                    color={
+                      isItemInWishlist(item?._id) ? Colors.red : Colors.text_grey
+                    }
+                  />
+                </Pop>
               </TouchableOpacity>
               {isBuyItWith ? null : (
                 <TouchableOpacity
@@ -340,7 +347,8 @@ const HomePopularProduct = ({
                   <Text style={[styles.buttonText]}>VIEW PRODUCT</Text>
                 </TouchableOpacity>
               )}
-            </TouchableOpacity>
+            </PressableScale>
+            </FadeInUp>
             {/* Display "+" icon if comingFrom is 'buyItWith' and it's not the last product */}
             {isBuyItWith && index < visibleProducts.length - 1 && (
               <View style={styles.plusIconHolder}>
@@ -453,7 +461,7 @@ const styles = StyleSheet.create({
   },
   priceText: {
     fontSize: textScale(16),
-    color: Colors.green,
+    color: Colors.red,
     fontFamily: FontFamily.Montserrat_SemiBold,
   },
   productPriceText: {
@@ -579,7 +587,7 @@ const styles = StyleSheet.create({
   },
   mrpText: {
     fontSize: textScale(14),
-    color: Colors.green,
+    color: Colors.text_grey,
     textDecorationLine: 'line-through',
     fontFamily: FontFamily.Montserrat_SemiBold,
   },

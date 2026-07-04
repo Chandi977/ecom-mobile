@@ -13,6 +13,8 @@ import FontFamily from "../../utils/FontFamily";
 import StorageService from "../../utils/storageService";
 import { parseStoredUser } from "../../utils/HelperFunction";
 import GuestCartService from "../../utils/GuestCartService";
+import CartCacheService from "../../utils/CartCacheService";
+import { Pop } from "./Motion";
 
 const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
   // console.log(cartValueChanged, wishlistValueChanged, "line 13");
@@ -44,8 +46,15 @@ const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
       const storedUser = await StorageService.getItem("user_data");
       const userData = parseStoredUser(storedUser);
       if (userData?._id) {
+        // Show the cached count immediately, then reconcile with the server.
+        const cachedCount = await CartCacheService.getCount(userData._id);
+        if (cachedCount !== null) {
+          setCartCount(cachedCount);
+        }
         const response = await ApiService.GET_TOTAL_CART_COUNT(userData._id);
-        setCartCount(response?.data?.count || 0);
+        const count = response?.data?.count || 0;
+        setCartCount(count);
+        await CartCacheService.setCount(userData._id, count);
       } else {
         const guestCount = await GuestCartService.getCount();
         setCartCount(guestCount || 0);
@@ -112,9 +121,9 @@ const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
           >
             <Feather name="bell" size={moderateScale(28)} color={Colors.black} />
             {notifCount > 0 && (
-              <View style={styles.cartBadge}>
+              <Pop trigger={notifCount} style={styles.cartBadge}>
                 <Text style={styles.cartBadgeText}>{notifCount}</Text>
-              </View>
+              </Pop>
             )}
           </TouchableOpacity>
 
@@ -125,9 +134,9 @@ const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
               color={Colors.black}
             />
             {wishlistCount >= 0 && (
-              <View style={styles.cartBadge}>
+              <Pop trigger={wishlistCount} style={styles.cartBadge}>
                 <Text style={styles.cartBadgeText}>{wishlistCount}</Text>
-              </View>
+              </Pop>
             )}
           </TouchableOpacity>
 
@@ -142,9 +151,9 @@ const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
             />
 
             {cartCount >= 0 && (
-              <View style={styles.cartBadge}>
+              <Pop trigger={cartCount} style={styles.cartBadge}>
                 <Text style={styles.cartBadgeText}>{cartCount}</Text>
-              </View>
+              </Pop>
             )}
           </TouchableOpacity>
         </View>

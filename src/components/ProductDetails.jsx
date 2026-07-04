@@ -750,27 +750,29 @@ const ProductDetails = ({ route }) => {
               </Text>
             </View>
             <View style={styles.priceHolder}>
-              <View
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: moderateScale(5),
-                  marginBottom: moderateVerticalScale(10),
-                }}
-              >
-                <Text
+              {(mrp ? Number(mrp) : Number(item?.priceList?.[0]?.MRP || 0)) > (sp ? Number(sp) : Number(item?.priceList?.[0]?.SP || 0)) && (
+                <View
                   style={{
-                    color: Colors.brandColor,
-                    fontSize: textScale(14),
-                    fontFamily: FontFamily.Montserrat_Regular,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: moderateScale(5),
+                    marginBottom: moderateVerticalScale(10),
                   }}
                 >
-                  M.R.P
-                </Text>
-                <Text style={styles.mrpText}>
-                  Rs.{mrp ? mrp : item?.priceList?.[0]?.MRP}
-                </Text>
-              </View>
+                  <Text
+                    style={{
+                      color: Colors.brandColor,
+                      fontSize: textScale(14),
+                      fontFamily: FontFamily.Montserrat_Regular,
+                    }}
+                  >
+                    M.R.P
+                  </Text>
+                  <Text style={styles.mrpText}>
+                    Rs.{mrp ? mrp : item?.priceList?.[0]?.MRP}
+                  </Text>
+                </View>
+              )}
               {item?.priceList.length > 2 && (
                 <Text style={styles.price}>
                   Rs.{sp ? sp : item?.priceList?.[0]?.SP}
@@ -875,7 +877,7 @@ const ProductDetails = ({ route }) => {
                 onPress={() => handleSaveToWishList(item)}
               >
                 <AntDesign
-                  name={isItemInWishlist(item._id) ? 'heart' : 'heart'}
+                  name={isItemInWishlist(item._id) ? 'heart' : 'hearto'}
                   size={moderateScale(30)}
                   color={
                     isItemInWishlist(item._id) ? Colors.red : Colors.text_grey
@@ -1254,7 +1256,7 @@ const styles = StyleSheet.create({
   },
   mrpText: {
     fontSize: textScale(14),
-    color: Colors.red,
+    color: Colors.text_grey,
     textDecorationLine: 'line-through',
     fontFamily: FontFamily.Montserrat_SemiBold,
   },

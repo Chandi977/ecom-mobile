@@ -218,9 +218,11 @@ export default function PopularProducts({ data }) {
                     width: "100%",
                   }}
                 >
-                  <Text style={styles.mrpText}>
-                    ₹{Math.round(item?.priceList?.[0]?.MRP)}
-                  </Text>
+                  {item?.priceList?.[0]?.MRP > item?.priceList?.[0]?.SP && (
+                    <Text style={styles.mrpText}>
+                      ₹{Math.round(item?.priceList?.[0]?.MRP)}
+                    </Text>
+                  )}
                   <Text
                     style={[
                       styles.priceText,
@@ -230,25 +232,27 @@ export default function PopularProducts({ data }) {
                   </Text>
                 </View>
               </View>
-              <View style={styles.discountHolder}>
-                <View style={styles.offerView}>
-                  <Text style={styles.offerText}>
-                    {parseInt(
-                      ((item?.priceList[0]?.MRP - item?.priceList[0]?.SP) /
-                        item?.priceList[0]?.MRP) *
-                        100
-                    )}
-                    %{"\n"}
-                    OFF
-                  </Text>
+              {item?.priceList?.[0]?.MRP > item?.priceList?.[0]?.SP && (
+                <View style={styles.discountHolder}>
+                  <View style={styles.offerView}>
+                    <Text style={styles.offerText}>
+                      {parseInt(
+                        ((item?.priceList[0]?.MRP - item?.priceList[0]?.SP) /
+                          item?.priceList[0]?.MRP) *
+                          100
+                      )}
+                      %{"\n"}
+                      OFF
+                    </Text>
+                  </View>
                 </View>
-              </View>
+              )}
               <TouchableOpacity
                 style={styles.heartIconHolder}
                 onPress={() => handleSaveToWishList(item)}
               >
                 <AntDesign
-                  name={isItemInWishlist(item._id) ? "heart" : "heart"}
+                  name={isItemInWishlist(item._id) ? "heart" : "hearto"}
                   size={moderateScale(25)}
                   color={
                     isItemInWishlist(item._id) ? Colors.red : Colors.text_grey
@@ -304,7 +308,7 @@ const styles = StyleSheet.create({
   },
   priceText: {
     fontSize: textScale(18),
-    color: Colors.green,
+    color: Colors.red,
     fontFamily: FontFamily.Montserrat_SemiBold,
   },
   nameText: {
@@ -398,7 +402,7 @@ const styles = StyleSheet.create({
   },
   mrpText: {
     fontSize: textScale(14),
-    color: Colors.green,
+    color: Colors.text_grey,
     textDecorationLine: "line-through",
     fontFamily: FontFamily.Montserrat_SemiBold,
   },

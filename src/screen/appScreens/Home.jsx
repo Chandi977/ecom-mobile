@@ -35,6 +35,7 @@ import Description from '../../components/Home/Description';
 import CustomButton from '../../components/General/CustomButton';
 import CustomPackagingButton from '../../components/Home/CustomPackagingButton';
 import HomePopularProduct from '../../components/Home/HomePopularProduct';
+import { ProductRowSkeleton } from '../../components/General/Skeleton';
 import WrapperContainer from '../../utils/WrapperContainer';
 import StorageService from '../../utils/storageService';
 import { parseStoredUser } from '../../utils/HelperFunction';
@@ -63,6 +64,7 @@ const Home = () => {
   const [updateStoreUrl, setUpdateStoreUrl] = useState(null);
   const [brandNameById, setBrandNameById] = useState({});
   const [brandList, setBrandList] = useState([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
 
   const searchProducts = useCallback(async query => {
     const data = { search: query };
@@ -173,6 +175,8 @@ const Home = () => {
       }
     } catch (e) {
       console.log('Error fetching Products', e?.message);
+    } finally {
+      setLoadingProducts(false);
     }
   };
 
@@ -333,13 +337,17 @@ const Home = () => {
               <View style={styles.brandView}>
                 <Text style={styles.brandText}>SHOP FROM TOP PRODUCTS</Text>
                 <View style={styles.horizontalListWrapper}>
-                  <HomePopularProduct
-                    data={filteredProducts}
-                    cartValueChanged={cartValueChanged}
-                    wishlistValueChanged={wishListValueChanged}
-                    setCartValueChanged={setCartValueChanged}
-                    setWishListValueChanged={setWishListValueChanged}
-                  />
+                  {loadingProducts ? (
+                    <ProductRowSkeleton />
+                  ) : (
+                    <HomePopularProduct
+                      data={filteredProducts}
+                      cartValueChanged={cartValueChanged}
+                      wishlistValueChanged={wishListValueChanged}
+                      setCartValueChanged={setCartValueChanged}
+                      setWishListValueChanged={setWishListValueChanged}
+                    />
+                  )}
                 </View>
               </View>
             </View>
@@ -349,13 +357,17 @@ const Home = () => {
                   BEST DEALS ON FEATURED PRODUCTS
                 </Text>
                 <View style={styles.horizontalListWrapper}>
-                  <HomePopularProduct
-                    data={dealProduct}
-                    cartValueChanged={cartValueChanged}
-                    wishlistValueChanged={wishListValueChanged}
-                    setCartValueChanged={setCartValueChanged}
-                    setWishListValueChanged={setWishListValueChanged}
-                  />
+                  {loadingProducts ? (
+                    <ProductRowSkeleton />
+                  ) : (
+                    <HomePopularProduct
+                      data={dealProduct}
+                      cartValueChanged={cartValueChanged}
+                      wishlistValueChanged={wishListValueChanged}
+                      setCartValueChanged={setCartValueChanged}
+                      setWishListValueChanged={setWishListValueChanged}
+                    />
+                  )}
                 </View>
               </View>
             </View>
