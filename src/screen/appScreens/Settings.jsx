@@ -13,6 +13,7 @@ import WrapperContainer from '../../utils/WrapperContainer';
 import StorageService from '../../utils/storageService';
 import ApiService from '../../service/APIService';
 import { parseStoredUser, showSuccessMessage } from '../../utils/HelperFunction';
+import { unregisterFromPush } from '../../service/pushNotifications';
 import Ionicons from 'react-native-vector-icons/Ionicons';
 import Feather from 'react-native-vector-icons/Feather';
 import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
@@ -53,6 +54,8 @@ const Settings = () => {
 
       if (response?.data?.success) {
         showSuccessMessage('Your account has been deleted.');
+        // Remove the device from the push registry before clearing the session.
+        await unregisterFromPush();
         await StorageService.clear();
         navigation.replace('Drawer');
       } else {

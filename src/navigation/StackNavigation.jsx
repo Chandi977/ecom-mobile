@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import { navigationRef } from './navigationRef';
+import { navigationRef, flushPendingNavigation } from './navigationRef';
 import CustomForm from '../screen/appScreens/CustomForm';
 import Login from '../screen/authScreen/Login';
 import ForgetPassword from '../screen/authScreen/forgetPassword/ForgetPassword';
@@ -39,7 +39,7 @@ const Stack = createStackNavigator();
 
 const StackNavigation = () => {
   return (
-    <NavigationContainer ref={navigationRef}>
+    <NavigationContainer ref={navigationRef} onReady={flushPendingNavigation}>
       <Stack.Navigator
         screenOptions={{
           headerShown: false,

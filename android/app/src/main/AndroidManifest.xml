@@ -28,5 +28,17 @@
        <meta-data
   android:name="com.razorpay.ApiKey"
   android:value="rzp_live_S5fmHpa1Thup8J" />
+
+      <!-- FCM: status-bar icon (monochrome silhouette), brand tint, and the
+           high-importance channel notifications route to on Android 8+. -->
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_icon"
+        android:resource="@drawable/ic_notification" />
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_color"
+        android:resource="@color/notification_color" />
+      <meta-data
+        android:name="com.google.firebase.messaging.default_notification_channel_id"
+        android:value="promotions" />
     </application>
 </manifest>

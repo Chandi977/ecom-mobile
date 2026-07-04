@@ -14,7 +14,10 @@ import VersionCheck from 'react-native-version-check';
 import UpdateModal from './src/components/General/UpdateModal';
 import { registerForPush, setupPushListeners } from './src/service/pushNotifications';
 
-LogBox.ignoreAllLogs(true);
+// Silence the in-app LogBox overlay only in production; keep warnings visible in dev.
+if (!__DEV__) {
+  LogBox.ignoreAllLogs(true);
+}
 
 const App = () => {
   const [isConnected, setIsConnected] = useState(true);

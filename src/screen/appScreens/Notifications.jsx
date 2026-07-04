@@ -7,7 +7,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import React, { useCallback, useEffect, useState } from 'react';
-import { useNavigation, useIsFocused } from '@react-navigation/native';
+import { useIsFocused } from '@react-navigation/native';
 import Feather from 'react-native-vector-icons/Feather';
 import moment from 'moment';
 import Colors from '../../utils/Colors';
@@ -21,9 +21,9 @@ import WrapperContainer from '../../utils/WrapperContainer';
 import InnerHeader from '../../components/Header/InnerHeader';
 import ApiService from '../../service/APIService';
 import StorageService from '../../utils/storageService';
+import { resolveDeepLink } from '../../service/deepLink';
 
 const Notifications = () => {
-  const navigation = useNavigation();
   const isFocused = useIsFocused();
 
   const [items, setItems] = useState([]);
@@ -70,19 +70,9 @@ const Notifications = () => {
     } catch (e) {
       console.log('mark read failed', e?.message);
     }
-    // Deep-link based on the payload attached to the notification.
-    const data = item.data || {};
-    if (data.type === 'order') {
-      navigation.navigate('My Order');
-    } else if (data.type === 'product' && data.productId) {
-      // ProductDetails needs the full product object, so fetch it first.
-      try {
-        const res = await ApiService.GET_SINGLE_PRODUCT(data.productId);
-        if (res?.data) navigation.navigate('ProductDetails', { item: res.data });
-      } catch (e) {
-        console.log('product deep-link failed', e?.message);
-      }
-    }
+    // Deep-link based on the payload attached to the notification (shared with
+    // the push tap handlers so routing behaviour stays consistent).
+    await resolveDeepLink(item.data);
   };
 
   const markAllRead = async () => {

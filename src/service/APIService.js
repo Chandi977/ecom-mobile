@@ -32,7 +32,6 @@ const summarizeResponse = data => {
 apiClient.interceptors.request.use(
   async config => {
     const token = await StorageService.getItem('authToken');
-    console.log('Retrieved Auth Token:', token ? '[PRESENT]' : '[MISSING]');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -41,15 +40,17 @@ apiClient.interceptors.request.use(
       config.headers['Content-Type'] = 'application/json';
     }
 
-    console.log(
-      `[API Request] ${config.method?.toUpperCase()} ${config.baseURL}${
-        config.url
-      }`,
-      {
-        hasAuth: Boolean(config.headers.Authorization),
-        data: config.data ? '[DATA]' : null,
-      },
-    );
+    if (__DEV__) {
+      console.log(
+        `[API Request] ${config.method?.toUpperCase()} ${config.baseURL}${
+          config.url
+        }`,
+        {
+          hasAuth: Boolean(config.headers.Authorization),
+          data: config.data ? '[DATA]' : null,
+        },
+      );
+    }
 
     return config;
   },
@@ -58,16 +59,20 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   response => {
-    console.log(`[API Response] ${response.status}`, summarizeResponse(response.data));
+    if (__DEV__) {
+      console.log(`[API Response] ${response.status}`, summarizeResponse(response.data));
+    }
     return response;
   },
   async error => {
-    console.error('[API Error]', {
-      message: error.message,
-      code: error.code,
-      status: error.response?.status,
-      url: error.config?.url,
-    });
+    if (__DEV__) {
+      console.error('[API Error]', {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        url: error.config?.url,
+      });
+    }
 
     if (error.response?.status === 401) {
       await StorageService.removeItem('authToken');

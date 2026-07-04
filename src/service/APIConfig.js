@@ -1,4 +1,10 @@
-export const BASE_URL = 'http://10.0.2.2:5000/premind/api/';
+// Production points at the live API; debug builds use a reachable dev host
+// (localhost isn't reachable from a physical device, so a tunnel is used in dev).
+// Override either via an env-injected value if you wire up react-native-config.
+const PROD_BASE_URL = 'https://server.prempackaging.com/premind/api/';
+const DEV_BASE_URL = 'https://307h8lvv-5000.inc1.devtunnels.ms/premind/api/';
+
+export const BASE_URL = __DEV__ ? DEV_BASE_URL : PROD_BASE_URL;
 
 export const API_ENDPOINTS = {
   AUTH: {

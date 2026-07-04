@@ -26,6 +26,7 @@ import {
   parseStoredUser,
   showSuccessMessage,
 } from '../../utils/HelperFunction';
+import { unregisterFromPush } from '../../service/pushNotifications';
 
 const Profile = route => {
   console.log(route?.route?.name, 'Line 35');
@@ -117,7 +118,10 @@ const Profile = route => {
 
   const handleLogout = async () => {
     showSuccessMessage('You have successfully logged out');
-    StorageService.clear();
+    // Unlink this device from the account first (reads fcmToken from storage),
+    // then clear the session, so the previous user stops receiving pushes here.
+    await unregisterFromPush();
+    await StorageService.clear();
     navigation.replace('Drawer');
   };
   return (
