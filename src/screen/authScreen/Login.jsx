@@ -35,7 +35,7 @@ import {
   isGoogleAuthConfigured,
 } from '../../service/googleAuthConfig';
 import StorageService from '../../utils/storageService';
-import GuestCartService from '../../utils/GuestCartService';
+import CartService from '../../service/CartService';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -112,10 +112,13 @@ const Login = () => {
     setShowErrorText(false);
     setErrorMessage('');
 
+    // Merge any items the user built up while browsing as a guest into their
+    // server cart. The local cart is cleared only after a fully successful sync
+    // (partial failures are retained for a later retry — see CartService).
     const loggedInUser = parseStoredUser(sessionUser);
     try {
       if (loggedInUser?._id) {
-        await GuestCartService.mergeToUser(loggedInUser._id);
+        await CartService.syncGuestCartAfterLogin(loggedInUser._id);
         DeviceEventEmitter.emit('cartUpdated');
       }
     } catch (e) {

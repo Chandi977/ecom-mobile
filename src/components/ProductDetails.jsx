@@ -42,7 +42,7 @@ import {
   showErrorMessage,
   showSuccessMessage,
 } from '../utils/HelperFunction';
-import PendingCartService from '../utils/PendingCartService';
+import CartService from '../service/CartService';
 
 // ─── Category constants (mirrors web Info.tsx) ───
 const PACKPRO_TAPE_CATEGORY_ID = "6557df64301ec4f2f4266141";
@@ -544,42 +544,33 @@ const ProductDetails = ({ route }) => {
     }
   };
   const handleAddToCart = async (product, overrideCount = null) => {
-    let user = await StorageService.getItem('user_data');
-    if (user !== null) {
-      const userData = parseStoredUser(user);
-      const effectiveCount = overrideCount !== null ? overrideCount : count;
-      let data = {
-        product: {
-          brand: product?.brand?._id,
-          product: product?._id,
-          category: product?.category?._id,
-          packSize: number ? number : product?.priceList[0].number,
-          price: sp ? sp : product?.priceList?.[0]?.SP,
-          quantity: effectiveCount,
-          stock: 1000,
-          totalWeight: product?.priceList[0].number,
-          totalPackWeight: 0,
-        },
-        user: userData?._id,
-      };
-      console.log(data, 'Line 212');
-      try {
-        const response = await ApiService.ADD_TO_CART(data);
-        console.log('Add To Cart Response:', response);
-        if (response?.success) {
-          showMessage({
-            message: 'Product Added to cart successfully',
-            type: 'success',
-            icon: 'success',
-          });
-          DeviceEventEmitter.emit('cartUpdated');
-        }
-      } catch (e) {
-        console.log('Error:', e);
+    // CartService decides guest (local storage) vs. logged-in (server API)
+    // automatically, so a logged-out shopper can build a cart without being
+    // forced to sign in first. packSize/price honour the on-screen selection
+    // (`number` / `sp`), falling back to the product's first price tier.
+    const effectiveCount = overrideCount !== null ? overrideCount : count;
+    try {
+      const result = await CartService.addToCart(product, {
+        packSize: number ? number : product?.priceList?.[0]?.number,
+        price: sp ? sp : product?.priceList?.[0]?.SP,
+        quantity: effectiveCount,
+        brand: product?.brand?._id,
+        category: product?.category?._id,
+      });
+
+      if (result?.success) {
+        showMessage({
+          message: 'Product Added to cart successfully',
+          type: 'success',
+          icon: 'success',
+        });
+        DeviceEventEmitter.emit('cartUpdated');
+      } else {
+        showErrorMessage('Unable to add product to cart. Please try again.');
       }
-    } else {
-      PendingCartService.set(product, count);
-      setShowLoginPopup(true);
+    } catch (e) {
+      console.log('Error adding to cart:', e?.message);
+      showErrorMessage('Unable to add product to cart. Please try again.');
     }
   };
 

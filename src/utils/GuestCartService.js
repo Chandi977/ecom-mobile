@@ -1,12 +1,13 @@
 import StorageService from './storageService';
-import ApiService from '../service/APIService';
 
 /**
  * Guest Cart Service
  *
- * Lets a logged-out user build a cart that is persisted locally (encrypted
- * storage). On login the local cart is pushed to the user's server cart and
- * the local copy is cleared.
+ * Pure *local* cart storage for a logged-out user, persisted in encrypted
+ * storage so it survives app restarts. This module intentionally knows nothing
+ * about the server or auth — pushing the local cart to a user's server cart on
+ * login is handled by CartService.syncGuestCartAfterLogin, keeping guest and
+ * authenticated logic cleanly separated.
  *
  * A line item is uniquely identified by product._id + packSize, so the same
  * product in two different pack sizes stays as two lines, mirroring the server.
@@ -82,42 +83,6 @@ const GuestCartService = {
 
   async clear() {
     await StorageService.removeItem(GUEST_CART_KEY);
-  },
-
-  /**
-   * Push every locally stored guest cart item to the given user's server cart,
-   * then clear the local cart. Safe to call when the cart is empty.
-   * @param {string} userId
-   */
-  async mergeToUser(userId) {
-    if (!userId) return;
-
-    const cart = await GuestCartService.getCart();
-    if (!cart.length) return;
-
-    for (const line of cart) {
-      const product = line.product;
-      const data = {
-        product: {
-          product: product?._id,
-          packSize: line.packSize ?? product?.priceList?.[0]?.number,
-          price: line.price ?? product?.priceList?.[0]?.SP,
-          quantity: line.quantity,
-          stock: 1000,
-          totalWeight: product?.priceList?.[0]?.number,
-          totalPackWeight: 0,
-        },
-        user: userId,
-      };
-
-      try {
-        await ApiService.ADD_TO_CART(data);
-      } catch (e) {
-        console.log('Guest cart merge failed for item:', product?._id, e?.message);
-      }
-    }
-
-    await GuestCartService.clear();
   },
 };
 
