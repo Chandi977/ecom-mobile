@@ -252,6 +252,27 @@ const getOverviewFields = (product, packSize, weightValue) => {
   return commonFields;
 };
 
+const renderMultilineTextMobile = (text) => {
+  if (!text) return null;
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+  if (lines.length > 1) {
+    return (
+      <View style={{ gap: moderateVerticalScale(4), marginTop: moderateVerticalScale(2) }}>
+        {lines.map((line, idx) => {
+          const cleanedLine = line.replace(/^[-*•]\s*/, "");
+          return (
+            <View key={idx} style={{ flexDirection: 'row', alignItems: 'flex-start' }}>
+              <Text style={[styles.detailText, { marginRight: moderateScale(6) }]}>•</Text>
+              <Text style={[styles.detailText, { flex: 1 }]}>{cleanedLine}</Text>
+            </View>
+          );
+        })}
+      </View>
+    );
+  }
+  return <Text style={styles.detailText}>{text}</Text>;
+};
+
 const ProductDetails = ({ route }) => {
   const [webViewHeight, setWebViewHeight] = useState(100);
   const { item } = route.params;
@@ -973,17 +994,58 @@ const ProductDetails = ({ route }) => {
           </View> */}
           </View>
           {/* Third Section */}
-          {/* Third Section: Quick Overview, Specifications & Details */}
+          {/* Third Section: Quick Overview, About the Item, Specifications, Product Description, Usage & Care Instructions */}
           {(() => {
             const showQuickOverview = isFieldVisible(item, 'section:quick_overview');
             const showSpecifications = isFieldVisible(item, 'section:specifications');
             const showProductDetails = isFieldVisible(item, 'section:product_details');
+            const showAboutItem = isFieldVisible(item, 'field:about_item');
             const specificationsData = getMobileSpecifications(item);
 
-            const hasDescription = Boolean(item?.description && String(item?.description).trim());
-            const hasAboutItem = Boolean(item?.aboutItem && String(item?.aboutItem).trim());
+            const isPaperBagProduct = getProductKind(item) === 'paperbag';
 
-            if (!showQuickOverview && !showSpecifications && !showProductDetails) return null;
+            const aboutItemText = (() => {
+              if (item?.aboutItem && String(item.aboutItem).trim() !== "" && String(item.aboutItem).trim().toLowerCase() !== "text pending") {
+                return item.aboutItem;
+              }
+              if (isPaperBagProduct) {
+                return `- Made from high-quality kraft paper for durability.
+- Eco-friendly, recyclable, and biodegradable.
+- Strong handles for comfortable carrying.
+- Available in multiple sizes, colors, and GSM options.
+- Suitable for retail, gifting, grocery, and takeaway packaging.
+- Can be customized with brand logo and printing.`;
+              }
+              return "";
+            })();
+            const hasAboutItem = Boolean(aboutItemText);
+
+            const usageText = (() => {
+              if (item?.usage && String(item.usage).trim() !== "" && String(item.usage).trim().toLowerCase() !== "text pending") {
+                return item.usage;
+              }
+              if (isPaperBagProduct) {
+                return `- Keep away from direct water contact or excessive moisture.
+- Store in a cool, dry place.
+- Do not exceed the recommended load capacity.
+- Reusable multiple times under normal handling.`;
+              }
+              return "";
+            })();
+            const hasUsage = Boolean(usageText);
+            const hasDescription = Boolean(item?.description && String(item?.description).trim());
+
+            const showDescriptionDetails = showProductDetails && hasDescription;
+            const showUsageDetails = showProductDetails && hasUsage;
+
+            const hasAnyVisibleSection =
+              (showQuickOverview && overviewFieldsData.length > 0) ||
+              (showAboutItem && hasAboutItem) ||
+              (showSpecifications && specificationsData.length > 0) ||
+              showDescriptionDetails ||
+              showUsageDetails;
+
+            if (!hasAnyVisibleSection) return null;
 
             return (
               <View style={[styles.firstSection, { padding: moderateScale(15), gap: moderateVerticalScale(20) }]}>
@@ -1002,7 +1064,17 @@ const ProductDetails = ({ route }) => {
                   </View>
                 )}
 
-                {/* 2. Specifications */}
+                {/* 2. About the Item / Highlights */}
+                {showAboutItem && hasAboutItem && (
+                  <View>
+                    <Text style={styles.sectionHeading}>About the Item / Highlights</Text>
+                    <View style={{ marginTop: moderateVerticalScale(5) }}>
+                      {renderMultilineTextMobile(aboutItemText)}
+                    </View>
+                  </View>
+                )}
+
+                {/* 3. Specifications */}
                 {showSpecifications && specificationsData.length > 0 && (
                   <View>
                     <Text style={styles.sectionHeading}>Specifications</Text>
@@ -1017,24 +1089,30 @@ const ProductDetails = ({ route }) => {
                   </View>
                 )}
 
-                {/* 3. Product Details */}
-                {showProductDetails && (hasDescription || hasAboutItem) && (
+                {/* 4. Product Description */}
+                {showDescriptionDetails && (
                   <View>
-                    <Text style={styles.sectionHeading}>Product Details</Text>
+                    <Text style={styles.sectionHeading}>Product Description</Text>
                     <View style={{ marginTop: moderateVerticalScale(5) }}>
-                      {hasDescription ? (
-                        <WebView
-                          source={{
-                            html: `<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body>${item?.description}</body></html>`,
-                          }}
-                          injectedJavaScript={webViewScript}
-                          onMessage={onWebViewMessage}
-                          style={{ height: webViewHeight }}
-                          originWhitelist={['*']}
-                        />
-                      ) : (
-                        <Text style={styles.text2}>{item.aboutItem}</Text>
-                      )}
+                      <WebView
+                        source={{
+                          html: `<html><head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head><body>${item?.description}</body></html>`,
+                        }}
+                        injectedJavaScript={webViewScript}
+                        onMessage={onWebViewMessage}
+                        style={{ height: webViewHeight }}
+                        originWhitelist={['*']}
+                      />
+                    </View>
+                  </View>
+                )}
+
+                {/* 5. Usage & Care Instructions */}
+                {showUsageDetails && (
+                  <View>
+                    <Text style={styles.sectionHeading}>Usage & Care Instructions</Text>
+                    <View style={{ marginTop: moderateVerticalScale(5) }}>
+                      {renderMultilineTextMobile(usageText)}
                     </View>
                   </View>
                 )}
@@ -1597,6 +1675,12 @@ const styles = StyleSheet.create({
     paddingBottom: moderateVerticalScale(5),
     alignSelf: 'flex-start',
     marginBottom: moderateVerticalScale(10),
+  },
+  detailText: {
+    fontSize: textScale(13),
+    color: '#444444',
+    fontFamily: FontFamily.Montserrat_Medium,
+    lineHeight: scale(18),
   },
   relatedView: {
     borderWidth: 2,
