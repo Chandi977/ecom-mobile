@@ -43,6 +43,14 @@ import {
   showSuccessMessage,
 } from '../utils/HelperFunction';
 import CartService from '../service/CartService';
+import ProductImage from './product/ProductImage';
+import {
+  getPriceTiers,
+  getPrimaryPriceTier,
+  getProductImageUri,
+  getProductImages,
+  isInStock,
+} from '../utils/productCatalog';
 
 // ─── Category constants (mirrors web Info.tsx) ───
 const PACKPRO_TAPE_CATEGORY_ID = "6557df64301ec4f2f4266141";
@@ -232,12 +240,20 @@ const getOverviewFields = (product, packSize, weightValue) => {
     return "No";
   };
 
+  // Labels are sold as rolls that each contain many stickers, so surface the
+  // per-roll count (e.g. "250") alongside the dimensions. Falls back to the
+  // specification sidecar for products fetched before flattening.
+  const labelsPerRoll = hasValue(product?.label_in_roll)
+    ? product.label_in_roll
+    : product?.specification?.label_in_roll;
+
   const commonFields = [
     { label: "Brand", value: brandName || "Not Available" },
     { label: "Model", value: prodModel || "Not Available" },
     { label: "Product Title", value: fullTitle || "Not Available" },
     { label: "Dimension (inch)", value: product?.size_inch || "Not Available" },
     { label: "Dimension (mm)", value: product?.size_mm || "Not Available" },
+    { label: "Labels per Roll", value: hasValue(labelsPerRoll) ? String(labelsPerRoll) : "Not Available" },
     { label: "HSN Code", value: product?.hsn_code || "Not Available" },
     { label: "GST", value: formatGst(product?.gst) },
     { label: "Pack Size", value: hasValue(packSize) ? packSize : "Not Available" },
@@ -275,9 +291,12 @@ const renderMultilineTextMobile = (text) => {
 
 const ProductDetails = ({ route }) => {
   const [webViewHeight, setWebViewHeight] = useState(100);
-  const { item } = route.params;
+  // `item` starts from the (possibly partial) list object handed over in nav
+  // params, then is replaced with a freshly-fetched, fully-populated product so
+  // the detail screen never renders stale/incomplete data — mirroring the web
+  // app's SSR-by-slug fetch.
+  const [item, setItem] = useState(route.params?.item);
   const autoAddExecutedRef = React.useRef(false);
-  console.log(item, 'Line 31');
   const [buyItWithProduct, setBuyItWithProduct] = useState([]);
   const [count, setCount] = useState(1);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
@@ -303,6 +322,8 @@ const ProductDetails = ({ route }) => {
   const [wishListValueChanged, setWishListValueChanged] = useState(0);
   const [crossCategoryProducts, setCrossCategoryProducts] = useState([]);
   const [isCrossLoading, setIsCrossLoading] = useState(false);
+  const [isAddingToCart, setIsAddingToCart] = useState(false);
+  const [isAddedToCart, setIsAddedToCart] = useState(false);
 
   const CROSS_CATEGORY_MAP = {
     '6557df46301ec4f2f4266139': [
@@ -315,11 +336,30 @@ const ProductDetails = ({ route }) => {
     ], // Poly Bag → Paper Bag, BOPP Tape
   };
 
+  // Fetch a fresh, fully-populated copy of the product (by slug, falling back to
+  // id) so the screen renders complete data even when opened from a card that
+  // only carried a card-signed, partial list object.
+  const fetchFreshProduct = async () => {
+    const base = route.params?.item;
+    if (!base) return;
+    try {
+      let response;
+      if (base?.slug) {
+        response = await ApiService.GET_PRODUCT_BY_SLUG(base.slug);
+      } else if (base?._id) {
+        response = await ApiService.GET_SINGLE_PRODUCT(base._id);
+      }
+      if (response?.data) {
+        setItem(prev => ({ ...prev, ...response.data }));
+      }
+    } catch (error) {
+      console.log('Error refreshing product detail:', error?.message);
+    }
+  };
+
   const fetchCrossCategoryProducts = async () => {
     setIsCrossLoading(true);
     try {
-      const response = await ApiService.GET_ALL_PRODUCTS();
-      const allProducts = response?.data || [];
       const currentCategoryId = item?.category?._id;
       const targetCategoryIds = CROSS_CATEGORY_MAP[currentCategoryId] || [
         '6557df46301ec4f2f4266139',
@@ -327,9 +367,13 @@ const ProductDetails = ({ route }) => {
       ];
       const cross = [];
       for (const catId of targetCategoryIds) {
-        const found = allProducts.find(
-          p => p?.category?._id === catId && p?._id !== item?._id,
-        );
+        // One small server-side page per target category instead of pulling the
+        // whole catalog and filtering on the client.
+        const response = await ApiService.FILTER_PRODUCTS({
+          category: catId,
+          limit: 4,
+        });
+        const found = (response?.data || []).find(p => p?._id !== item?._id);
         if (found) cross.push(found);
       }
       setCrossCategoryProducts(cross);
@@ -370,6 +414,7 @@ const ProductDetails = ({ route }) => {
   useFocusEffect(
     useCallback(() => {
       fetchWishlist();
+      fetchFreshProduct();
       fetchSingleProduct();
       fetchCrossCategoryProducts();
 
@@ -447,16 +492,17 @@ const ProductDetails = ({ route }) => {
         showSuccessMessage('Product removed from wishlist');
       } else {
         // Add to wishlist
+        const tier = getPrimaryPriceTier(product);
         const wishlistData = {
           product: {
             brand: product?.brand?._id,
             product: product?._id,
             category: product?.category?._id,
-            packSize: product?.priceList[0].number,
-            price: product?.priceList[0].SP,
+            packSize: tier.number,
+            price: tier.SP,
             quantity: 1,
             stock: 1000,
-            totalWeight: product?.priceList[0].number,
+            totalWeight: tier.number,
             totalPackWeight: 0,
           },
           user: userData?._id,
@@ -501,14 +547,16 @@ const ProductDetails = ({ route }) => {
       }
     }
 
-    // Priority 2 (fallback): same category, exclude current product
-    if (fetchedProducts.length === 0) {
+    // Priority 2 (fallback): same category, exclude current product — via a
+    // small server-side page instead of pulling the whole catalog.
+    if (fetchedProducts.length === 0 && item?.category?._id) {
       try {
-        const response = await ApiService.GET_ALL_PRODUCTS();
-        const allProducts = response?.data || [];
-        const sameCat = allProducts.filter(
-          p =>
-            p?.category?._id === item?.category?._id && p?._id !== item?._id,
+        const response = await ApiService.FILTER_PRODUCTS({
+          category: item.category._id,
+          limit: 6,
+        });
+        const sameCat = (response?.data || []).filter(
+          p => p?._id !== item?._id,
         );
         fetchedProducts = sameCat.slice(0, 5);
       } catch (error) {
@@ -525,16 +573,28 @@ const ProductDetails = ({ route }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Normalized pricing/media derived once, so render reads never touch raw
+  // `priceList`/`images` arrays that may be empty or absent.
+  const priceTiers = getPriceTiers(item);
+  const primaryTier = getPrimaryPriceTier(item);
+  const productImages = getProductImages(item);
+  const inStock = isInStock(item);
+  const selectedPackSize = number ? number : primaryTier.number;
+  const selectedPrice = sp ? sp : primaryTier.SP;
+
   const overviewFieldsData = getOverviewFields(
     item,
-    number ? number : item?.priceList?.[0]?.number,
-    packWeight ? packWeight : item?.priceList?.[0]?.pack_weight,
+    selectedPackSize,
+    packWeight ? packWeight : primaryTier.pack_weight,
   );
 
-  const handlePackSize = item => {
-    console.log(item, 'Line 185');
+  useEffect(() => {
+    setIsAddedToCart(false);
+  }, [item?._id, selectedPackSize, selectedPrice, count]);
+
+  const handlePackSize = () => {
     setShowPackSizeModal(true);
-    setPackSizeData(item?.priceList);
+    setPackSizeData(priceTiers);
   };
 
   const handleNotify = async product => {
@@ -570,10 +630,12 @@ const ProductDetails = ({ route }) => {
     // forced to sign in first. packSize/price honour the on-screen selection
     // (`number` / `sp`), falling back to the product's first price tier.
     const effectiveCount = overrideCount !== null ? overrideCount : count;
+    const productTier = getPrimaryPriceTier(product);
     try {
+      setIsAddingToCart(true);
       const result = await CartService.addToCart(product, {
-        packSize: number ? number : product?.priceList?.[0]?.number,
-        price: sp ? sp : product?.priceList?.[0]?.SP,
+        packSize: selectedPackSize || productTier.number,
+        price: selectedPrice || productTier.SP,
         quantity: effectiveCount,
         brand: product?.brand?._id,
         category: product?.category?._id,
@@ -586,13 +648,30 @@ const ProductDetails = ({ route }) => {
           icon: 'success',
         });
         DeviceEventEmitter.emit('cartUpdated');
+        setIsAddedToCart(true);
       } else {
         showErrorMessage('Unable to add product to cart. Please try again.');
       }
     } catch (e) {
       console.log('Error adding to cart:', e?.message);
       showErrorMessage('Unable to add product to cart. Please try again.');
+    } finally {
+      setIsAddingToCart(false);
     }
+  };
+
+  const handleCartAction = () => {
+    if (!inStock) {
+      handleNotify(item);
+      return;
+    }
+
+    if (isAddedToCart) {
+      navigation.navigate('Cart');
+      return;
+    }
+
+    handleAddToCart(item);
   };
 
   const handleDecreaseItemQuantity = async () => {
@@ -648,16 +727,12 @@ const ProductDetails = ({ route }) => {
                   style={styles.activityIndicator}
                 />
               )}
-              <FastImage
+              <ProductImage
+                uri={bigImage || getProductImageUri(item)}
                 style={styles.imageStyle}
-                source={{
-                  uri: bigImage === null ? item?.images[0]?.image : bigImage,
-                  priority: FastImage.priority.high,
-                  cache: FastImage.cacheControl.web,
-                }}
+                resizeMode={FastImage.resizeMode.contain}
                 onLoadStart={() => setImageLoading(true)}
                 onLoadEnd={() => setImageLoading(false)}
-                resizeMode={FastImage.resizeMode.stretch}
               />
               <TouchableOpacity
                 style={styles.iconHolder2}
@@ -682,16 +757,17 @@ const ProductDetails = ({ route }) => {
                   }}
                   style={styles.otherPics}
                 >
-                  {item?.images.map((item, i) => {
+                  {productImages.map((img, i) => {
                     return (
                       <TouchableOpacity
                         key={i}
                         style={styles.imageContainer}
-                        onPress={() => setBigImage(item?.image)}
+                        onPress={() => setBigImage(img?.image)}
                       >
-                        <Image
-                          source={{ uri: item?.image }}
+                        <ProductImage
+                          uri={img?.image}
                           style={styles.catImg}
+                          resizeMode={FastImage.resizeMode.contain}
                         />
                       </TouchableOpacity>
                     );
@@ -718,7 +794,7 @@ const ProductDetails = ({ route }) => {
                 <View style={styles.itemHolder}>
                   <Text style={styles.text2}>
                     1. Price per{' '}
-                    {number ? number : item?.priceList?.[0]?.number} pcs + GST
+                    {number ? number : primaryTier.number} pcs + GST
                     18%
                   </Text>
                   <Text style={styles.text2}>
@@ -732,7 +808,7 @@ const ProductDetails = ({ route }) => {
                     {item?.size_inch ? item?.size_inch : 'N/A'}( inches)
                   </Text>
                   <Text style={styles.text2}>
-                    5. Pack of {number ? number : item?.priceList?.[0]?.number}{' '}
+                    5. Pack of {number ? number : primaryTier.number}{' '}
                     Pcs
                   </Text>
                 </View>
@@ -749,20 +825,15 @@ const ProductDetails = ({ route }) => {
                 style={[
                   styles.name,
                   {
-                    color:
-                      item?.priceList[0]?.stock_quantity > 0
-                        ? Colors.green
-                        : Colors.red,
+                    color: inStock ? Colors.green : Colors.red,
                   },
                 ]}
               >
-                {item?.priceList[0]?.stock_quantity > 0
-                  ? 'In Stock'
-                  : 'Out of Stock'}
+                {inStock ? 'In Stock' : 'Out of Stock'}
               </Text>
             </View>
             <View style={styles.priceHolder}>
-              {(mrp ? Number(mrp) : Number(item?.priceList?.[0]?.MRP || 0)) > (sp ? Number(sp) : Number(item?.priceList?.[0]?.SP || 0)) && (
+              {(mrp ? Number(mrp) : Number(primaryTier.MRP || 0)) > (sp ? Number(sp) : Number(primaryTier.SP || 0)) && (
                 <View
                   style={{
                     flexDirection: 'row',
@@ -781,16 +852,16 @@ const ProductDetails = ({ route }) => {
                     M.R.P
                   </Text>
                   <Text style={styles.mrpText}>
-                    Rs.{mrp ? mrp : item?.priceList?.[0]?.MRP}
+                    Rs.{mrp ? mrp : primaryTier.MRP}
                   </Text>
                 </View>
               )}
-              {item?.priceList.length > 2 && (
+              {priceTiers.length > 2 && (
                 <Text style={styles.price}>
-                  Rs.{sp ? sp : item?.priceList?.[0]?.SP}
+                  Rs.{sp ? sp : primaryTier.SP}
                 </Text>
               )}
-              {item?.priceList.length > 2 ? (
+              {priceTiers.length > 2 ? (
                 <View
                   style={{
                     marginVertical: moderateVerticalScale(5),
@@ -813,10 +884,10 @@ const ProductDetails = ({ route }) => {
                       justifyContent: 'space-evenly',
                       gap: moderateScale(5),
                     }}
-                    onPress={() => handlePackSize(item)}
+                    onPress={handlePackSize}
                   >
                     <Text style={styles.text2}>
-                      {number ? number : item?.priceList[0]?.number}
+                      {number ? number : primaryTier.number}
                     </Text>
                     <AntDesign
                       name="down"
@@ -826,7 +897,7 @@ const ProductDetails = ({ route }) => {
                   </TouchableOpacity>
                 </View>
               ) : (
-                <Text style={styles.price}>Rs.{item?.priceList?.[0]?.SP}</Text>
+                <Text style={styles.price}>Rs.{primaryTier.SP}</Text>
               )}
             </View>
             <View style={styles.divider} />
@@ -860,29 +931,28 @@ const ProductDetails = ({ route }) => {
             {/* Button and heart Icon */}
             <View style={styles.buttonHolder2}>
               <TouchableOpacity
-                // onPress={() => handleAddToCart(item)}
-                onPress={() =>
-                  item?.priceList[0]?.stock_quantity > 0
-                    ? handleAddToCart(item)
-                    : handleNotify(item)
-                }
+                disabled={isAddingToCart}
+                onPress={handleCartAction}
                 style={[
                   styles.button,
                   {
                     backgroundColor:
-                      item?.priceList[0]?.stock_quantity > 0
-                        ? Colors.brandColor
+                      inStock && isAddedToCart
+                        ? Colors.success || '#138A43'
                         : Colors.brandColor,
                   },
+                  isAddingToCart && styles.buttonDisabled,
                 ]}
-                // disabled={item?.priceList[0]?.stock_quantity > 0 ? false : true}
               >
                 <Text style={styles.addText}>
-                  {item?.priceList[0]?.stock_quantity > 0
-                    ? 'ADD TO CART'
-                    : 'Notify Me'}
+                  {!inStock
+                    ? 'Notify Me'
+                    : isAddingToCart
+                      ? 'ADDING...'
+                      : isAddedToCart
+                        ? 'GO TO CART'
+                        : 'ADD TO CART'}
                 </Text>
-                {/* <Text style={styles.addText}>ADD TO CART</Text> */}
               </TouchableOpacity>
               <TouchableOpacity
                 style={styles.heartHolder}
@@ -1438,6 +1508,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: moderateScale(10),
     borderRadius: moderateScale(5),
+  },
+  buttonDisabled: {
+    opacity: 0.7,
   },
   productText: {
     color: Colors.forgetPassword,

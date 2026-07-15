@@ -3,11 +3,11 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  ScrollView,
-  Alert,
   DeviceEventEmitter,
+  FlatList,
+  ActivityIndicator,
 } from "react-native";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import Colors from "../../utils/Colors";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -20,13 +20,27 @@ import {
   width,
 } from "../../utils/responsiveSize";
 import FontFamily from "../../utils/FontFamily";
-import FastImage from "react-native-fast-image";
 import { showMessage } from "react-native-flash-message";
 import StorageService from "../../utils/storageService";
 import { parseStoredUser, showSuccessMessage } from "../../utils/HelperFunction";
 import GuestCartService from "../../utils/GuestCartService";
+import ProductImage from "../product/ProductImage";
+import {
+  formatCardPrice,
+  getPrimaryPriceTier,
+  getProductCardBadge,
+  getProductCardSummary,
+  getProductDisplayName,
+  isInStock,
+} from "../../utils/productCatalog";
 
-export default function PopularProducts({ data }) {
+export default function PopularProducts({
+  data,
+  brandNameById = {},
+  onEndReached,
+  loadingMore = false,
+  ListHeaderComponent,
+}) {
   const navigation = useNavigation();
   const [wishlist, setWishlist] = useState([]);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
@@ -62,17 +76,18 @@ export default function PopularProducts({ data }) {
   };
 
   const handleAddToCart = async (product) => {
+    const tier = getPrimaryPriceTier(product);
     const user = await StorageService.getItem("user_data");
     if (user) {
       const userData = parseStoredUser(user);
       const cartData = {
         product: {
           product: product?._id,
-          packSize: product?.priceList[0].number,
-          price: product?.priceList[0].SP,
+          packSize: tier.number,
+          price: tier.SP,
           quantity: 1,
           stock: 1000,
-          totalWeight: product?.priceList[0].number,
+          totalWeight: tier.number,
           totalPackWeight: 0,
         },
         user: userData?._id,
@@ -95,8 +110,8 @@ export default function PopularProducts({ data }) {
       try {
         await GuestCartService.addItem({
           product,
-          packSize: product?.priceList?.[0]?.number,
-          price: product?.priceList?.[0]?.SP,
+          packSize: tier.number,
+          price: tier.SP,
           quantity: 1,
         });
         showMessage({
@@ -111,8 +126,8 @@ export default function PopularProducts({ data }) {
     }
   };
 
-
   const handleSaveToWishList = async (product) => {
+    const tier = getPrimaryPriceTier(product);
     const user = await StorageService.getItem("user_data");
     if (!user) {
       setShowLoginPopup(true);
@@ -141,16 +156,16 @@ export default function PopularProducts({ data }) {
           }));
           throw new Error("Failed to remove from wishlist");
         }
-        showSuccessMessage("Product removed from wishlist")
+        showSuccessMessage("Product removed from wishlist");
       } else {
         const wishlistData = {
           product: {
             product: product?._id,
-            packSize: product?.priceList[0].number,
-            price: product?.priceList[0].SP,
+            packSize: tier.number,
+            price: tier.SP,
             quantity: 1,
             stock: 1000,
-            totalWeight: product?.priceList[0].number,
+            totalWeight: tier.number,
             totalPackWeight: 0,
           },
           user: userData?._id,
@@ -164,7 +179,7 @@ export default function PopularProducts({ data }) {
           }));
           throw new Error("Failed to add to wishlist");
         }
-        showSuccessMessage("Product added to wishlist")
+        showSuccessMessage("Product added to wishlist");
       }
 
       await fetchWishlist();
@@ -178,105 +193,99 @@ export default function PopularProducts({ data }) {
     }
   };
 
+  const renderCard = ({ item }) => {
+    const tier = getPrimaryPriceTier(item);
+    const badge = getProductCardBadge(item);
+    const showMrp = tier.MRP > tier.SP;
+    const title = getProductDisplayName(item, { brandNameById });
+    const summary = getProductCardSummary(item);
+    const inStock = isInStock(item);
+
+    return (
+      <TouchableOpacity
+        style={styles.item}
+        activeOpacity={0.9}
+        onPress={() => navigation.push("ProductDetails", { item })}
+      >
+        {!!badge && (
+          <View
+            style={[
+              styles.badge,
+              badge === "SALE" ? styles.badgeSale : styles.badgePopular,
+            ]}
+          >
+            <Text style={styles.badgeText}>{badge}</Text>
+          </View>
+        )}
+        <TouchableOpacity
+          style={styles.heartIconHolder}
+          onPress={() => handleSaveToWishList(item)}
+        >
+          <AntDesign
+            name={isItemInWishlist(item._id) ? "heart" : "hearto"}
+            size={moderateScale(20)}
+            color={isItemInWishlist(item._id) ? Colors.red : Colors.text_grey}
+          />
+        </TouchableOpacity>
+
+        <View style={styles.imageHolder}>
+          <ProductImage product={item} style={styles.image} />
+        </View>
+
+        <View style={styles.textHolder}>
+          <Text numberOfLines={2} style={styles.title}>
+            {title || item?.name}
+          </Text>
+          {!!summary && (
+            <Text numberOfLines={1} style={styles.summary}>
+              {summary}
+            </Text>
+          )}
+          <View style={styles.priceRow}>
+            <Text style={styles.priceText}>{formatCardPrice(tier.SP)}</Text>
+            {showMrp && (
+              <Text style={styles.mrpText}>{formatCardPrice(tier.MRP)}</Text>
+            )}
+          </View>
+        </View>
+
+        <TouchableOpacity
+          onPress={() =>
+            inStock
+              ? handleAddToCart(item)
+              : navigation.push("ProductDetails", { item })
+          }
+          style={[styles.button, !inStock && styles.buttonDisabled]}
+        >
+          <Text style={styles.buttonText}>
+            {inStock ? "ADD TO CART" : "VIEW PRODUCT"}
+          </Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <View style={{ flex: 1 }}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: moderateVerticalScale(80) }}
+      <FlatList
+        data={data}
+        keyExtractor={(item, index) => item?._id || String(index)}
+        renderItem={renderCard}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
+        contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.productHolder}>
-          {data.map((item, index) => (
-            <TouchableOpacity
-              key={index}
-              style={styles.item}
-              onPress={() => navigation.push("ProductDetails", { item })}
-            >
-              <View style={styles.imageHolder3}>
-                <FastImage
-                  style={styles.image}
-                  source={{
-                    uri: item?.images[0]?.image,
-                    priority: FastImage.priority.high,
-                    cache: FastImage.cacheControl.web,
-                  }}
-                  resizeMode={FastImage.resizeMode.stretch}
-                />
-              </View>
-              <View style={styles.itemTextHolder}>
-                <Text
-                  numberOfLines={2}
-                  style={[styles.nameText, { textTransform: "capitalize" }]}
-                >
-                  {item?.name}
-                </Text>
-                <View
-                  style={{
-                    flexDirection: "row",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    gap: moderateScale(5),
-                    width: "100%",
-                  }}
-                >
-                  {item?.priceList?.[0]?.MRP > item?.priceList?.[0]?.SP && (
-                    <Text style={styles.mrpText}>
-                      ₹{Math.round(item?.priceList?.[0]?.MRP)}
-                    </Text>
-                  )}
-                  <Text
-                    style={[
-                      styles.priceText,
-                    ]}
-                  >
-                    ₹{Math.round(item?.priceList[0]?.SP || "0")}
-                  </Text>
-                </View>
-              </View>
-              {item?.priceList?.[0]?.MRP > item?.priceList?.[0]?.SP && (
-                <View style={styles.discountHolder}>
-                  <View style={styles.offerView}>
-                    <Text style={styles.offerText}>
-                      {parseInt(
-                        ((item?.priceList[0]?.MRP - item?.priceList[0]?.SP) /
-                          item?.priceList[0]?.MRP) *
-                          100
-                      )}
-                      %{"\n"}
-                      OFF
-                    </Text>
-                  </View>
-                </View>
-              )}
-              <TouchableOpacity
-                style={styles.heartIconHolder}
-                onPress={() => handleSaveToWishList(item)}
-              >
-                <AntDesign
-                  name={isItemInWishlist(item._id) ? "heart" : "hearto"}
-                  size={moderateScale(25)}
-                  color={
-                    isItemInWishlist(item._id) ? Colors.red : Colors.text_grey
-                  }
-                />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => navigation.push("ProductDetails", { item })}
-                style={[
-                  styles.button,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.buttonText,
-                  ]}
-                >
-                  VIEW PRODUCT
-                </Text>
-              </TouchableOpacity>
-            </TouchableOpacity>
-          ))}
-        </View>
-      </ScrollView>
+        ListHeaderComponent={ListHeaderComponent}
+        onEndReached={onEndReached}
+        onEndReachedThreshold={0.5}
+        ListFooterComponent={
+          loadingMore ? (
+            <View style={styles.footerLoader}>
+              <ActivityIndicator size="small" color={Colors.brandColor} />
+            </View>
+          ) : null
+        }
+      />
       {showLoginPopup && (
         <LoginPopup
           showLoginPopup={showLoginPopup}
@@ -287,123 +296,131 @@ export default function PopularProducts({ data }) {
   );
 }
 
+const CARD_WIDTH = (width - moderateScale(36)) / 2;
+
 const styles = StyleSheet.create({
+  listContent: {
+    paddingHorizontal: moderateScale(12),
+    paddingBottom: moderateVerticalScale(80),
+  },
+  columnWrapper: {
+    justifyContent: "space-between",
+    marginBottom: moderateVerticalScale(12),
+  },
   item: {
-    padding: moderateScale(10),
+    width: CARD_WIDTH,
     backgroundColor: Colors.white,
-    elevation: moderateScale(10),
-    gap: moderateScale(5),
-    width: width * 0.45,
-  },
-  image: {
-    width: moderateScale(175),
-    height: moderateScale(175),
-    alignSelf: "center",
-  },
-  itemTextHolder: {
-    width: "98%",
-    height: moderateScale(80),
-    gap: moderateScale(5),
-    alignItems: "center",
-  },
-  priceText: {
-    fontSize: textScale(18),
-    color: Colors.red,
-    fontFamily: FontFamily.Montserrat_SemiBold,
-  },
-  nameText: {
-    fontSize: textScale(16),
-    color: Colors.black,
-    textAlign: "center",
-  },
-  discountHolder: {
-    position: "absolute",
-    top: "0%",
-    right: "0%",
-    alignItems: "center",
-    justifyContent: "center",
-    height: moderateScale(50),
-    width: "26%",
-  },
-  offerView: {
-    backgroundColor: Colors.red,
-    padding: moderateScale(5),
-    width: "100%",
-    borderBottomLeftRadius: moderateScale(10),
-  },
-  outOfStock: {
-    backgroundColor: Colors.red,
-    padding: moderateScale(5),
-    borderTopEndRadius: moderateScale(5),
-    borderBottomEndRadius: moderateScale(5),
-  },
-  outOfStockText: {
-    fontSize: textScale(14),
-    color: Colors.white,
-  },
-  offerText: {
-    fontSize: textScale(12),
-    color: Colors.white,
-    fontFamily: FontFamily.Montserrat_Medium,
-  },
-  heartIconHolder: {
-    position: "absolute",
-    top: "0%",
-    left: "0%",
-    padding: moderateScale(5),
     borderRadius: moderateScale(10),
-    backgroundColor: Colors.white,
-    borderColor: Colors.border_color,
+    borderWidth: 1,
+    borderColor: Colors.border_grey,
     overflow: "hidden",
   },
-  button: {
-    marginHorizontal: moderateScale(-10),
-    marginBottom: moderateScale(-10),
-    alignItems: "center",
-    backgroundColor: Colors.brandColor,
-  },
-  buttonText: {
-    fontSize: textScale(14),
-    textAlign: "center",
-    padding: moderateScale(10),
-    fontFamily: FontFamily.Montserrat_SemiBold,
-    color: Colors.white,
-  },
-  productHolder: {
-    width: "95%",
-    flex: 1,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: moderateScale(15),
-    alignSelf: "center",
-    justifyContent: "space-between",
-    marginVertical: moderateVerticalScale(10),
-  },
-  loaderContainer: {
-    width: "90%",
-    alignSelf: "center",
-    paddingBottom: 10,
-    borderRadius: 10,
-    backgroundColor: "transparent",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  loaderText: {
-    fontSize: textScale(14),
-    color: "black",
-    textAlign: "center",
-  },
-  loaderView: {
-    position: "absolute",
+  imageHolder: {
     width: "100%",
-    top: 30,
-    alignItems: "center",
+    height: moderateScale(140),
     justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.white,
+    paddingTop: moderateScale(24),
+    paddingHorizontal: moderateScale(12),
+    paddingBottom: moderateScale(8),
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+    alignSelf: "center",
+  },
+  textHolder: {
+    width: "100%",
+    paddingHorizontal: moderateScale(12),
+    paddingTop: moderateScale(4),
+    gap: moderateVerticalScale(3),
+  },
+  title: {
+    fontSize: textScale(12.5),
+    color: Colors.brandColor,
+    textAlign: "left",
+    textTransform: "capitalize",
+    fontFamily: FontFamily.Montserrat_Bold,
+    lineHeight: textScale(17),
+    minHeight: textScale(34),
+  },
+  summary: {
+    fontSize: textScale(10.5),
+    color: Colors.text_grey,
+    textAlign: "left",
+    fontFamily: FontFamily.Montserrat_Medium,
+  },
+  priceRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: moderateScale(6),
+    marginTop: moderateVerticalScale(2),
+  },
+  priceText: {
+    fontSize: textScale(17),
+    color: Colors.brandColor,
+    fontFamily: FontFamily.Montserrat_ExtraBold,
   },
   mrpText: {
-    fontSize: textScale(14),
+    fontSize: textScale(11),
     color: Colors.text_grey,
     textDecorationLine: "line-through",
     fontFamily: FontFamily.Montserrat_SemiBold,
+  },
+  badge: {
+    position: "absolute",
+    top: moderateScale(8),
+    left: moderateScale(8),
+    zIndex: 2,
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateScale(3),
+    borderRadius: moderateScale(3),
+  },
+  badgeSale: {
+    backgroundColor: Colors.red,
+  },
+  badgePopular: {
+    backgroundColor: Colors.brandColor,
+  },
+  badgeText: {
+    color: Colors.white,
+    fontSize: textScale(9),
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  heartIconHolder: {
+    position: "absolute",
+    top: moderateScale(6),
+    right: moderateScale(6),
+    zIndex: 2,
+    padding: moderateScale(5),
+    borderRadius: moderateScale(20),
+    backgroundColor: Colors.white,
+  },
+  button: {
+    width: "100%",
+    marginTop: moderateVerticalScale(10),
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.brandColor,
+    paddingVertical: moderateScale(10),
+  },
+  buttonDisabled: {
+    backgroundColor: Colors.outOfStock,
+  },
+  buttonText: {
+    fontSize: textScale(11),
+    textAlign: "center",
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    color: Colors.white,
+    textTransform: "uppercase",
+    letterSpacing: 0.4,
+  },
+  footerLoader: {
+    paddingVertical: moderateVerticalScale(16),
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

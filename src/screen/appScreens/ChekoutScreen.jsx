@@ -23,6 +23,7 @@ import {
 } from "../../utils/responsiveSize";
 import FontFamily from "../../utils/FontFamily";
 import FastImage from "react-native-fast-image";
+import ProductImage from "../../components/product/ProductImage";
 import { showMessage } from "react-native-flash-message";
 import StateData from "../../assets/data/State.json";
 import AntDesign from "react-native-vector-icons/AntDesign";
@@ -461,13 +462,9 @@ export default function ChekoutScreen({ route }) {
                 return (
                   <View style={styles.lowerView} key={index}>
                     <View style={styles.cartImageHolder}>
-                      <FastImage
+                      <ProductImage
+                        product={item?.product}
                         style={styles.cartImage}
-                        source={{
-                          uri: item?.product?.images[0]?.image,
-                          priority: FastImage.priority.high,
-                          cache: FastImage.cacheControl.web,
-                        }}
                         resizeMode={FastImage.resizeMode.cover}
                       />
                     </View>

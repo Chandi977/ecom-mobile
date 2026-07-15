@@ -59,12 +59,25 @@ export default function OTP(props) {
       email: email,
     };
     try {
-      const response = await ApiService.SEND_OTP_ON_EMAIL(data);
-      if (response?.data?.message === 'OTP generated successfully') {
-        Alert.alert('Success!!', 'OTP Send Again to your email!!');
+      // Registration verification and password reset use different OTP stores
+      // on the backend — resending the wrong kind produces a code that can
+      // never match.
+      const response =
+        initial === 'registration'
+          ? await ApiService.RE_VERIFY_EMAIL(data)
+          : await ApiService.SEND_OTP_ON_EMAIL(data);
+
+      if (response?.message) {
+        showSuccessMessage('A new code was sent to your email.');
+        // Restart the resend cooldown.
+        setOtpArray(Array(otpLength).fill(''));
+        setShowResendButton(false);
+        setRemainingTime(30);
       }
     } catch (e) {
-      console.log(e);
+      const serverMessage = e?.response?.data?.message;
+      console.log('Resend OTP failed:', serverMessage || e?.message);
+      showErrorMessage(serverMessage || 'Could not resend the code. Please try again.');
     }
   };
   const handleOtpChange = (index, value) => {
@@ -99,55 +112,66 @@ export default function OTP(props) {
   };
 
   const verifyOtp = async () => {
-    navigation.replace('UpdatePassword', { email: email });
+    if (otpSet.length !== otpLength) {
+      showErrorMessage('Please enter the complete code.');
+      return;
+    }
+    // The backend expects the OTP as a string; parseInt would also destroy
+    // leading zeros (e.g. "012345").
     const otpDetails = {
       email: email,
-      otp: parseInt(otpSet),
+      otp: otpSet,
     };
-    console.log(otpDetails, 'Line 105');
     setLoading(true);
     try {
       const response = await ApiService.VERIFY_OTP(otpDetails);
-      console.log(response);
+      setLoading(false);
       if (response && response?.message === 'OTP verified successfully') {
-        setLoading(false);
         navigation.replace('UpdatePassword', { email: email });
       } else {
-        Alert.alert('Error', 'Invalid Otp');
-        setLoading(false);
+        Alert.alert('Error', response?.message || 'Invalid Otp');
         setOtpArray(Array(otpLength).fill(''));
         refArray.current[0].current.focus();
       }
     } catch (e) {
-      console.log(e);
       setLoading(false);
+      const serverMessage = e?.response?.data?.message;
+      console.log('Verify OTP failed:', serverMessage || e?.message);
+      Alert.alert('Error', serverMessage || 'Invalid Otp');
+      setOtpArray(Array(otpLength).fill(''));
+      refArray.current[0].current.focus();
     }
   };
 
   // VERIFY_SIGN_UP_USER_EMAIL
   const verifyOtpSignUpUserEmail = async () => {
+    if (otpSet.length !== otpLength) {
+      showErrorMessage('Please enter the complete code.');
+      return;
+    }
     const formData = {
       otp: otpSet,
       email_address: email,
     };
-    console.log(formData, 'Line 105');
     setLoading(true);
     try {
       const response = await ApiService.VERIFY_SIGN_UP_USER_EMAIL(formData);
-      console.log(response);
+      setLoading(false);
       if (response && response?.message === 'OTP verified successfully') {
         showSuccessMessage('Account Verified Successfully. Please Login.');
         navigation.replace('SuccessScreen', { come: 'account', fromProductDetails });
       } else {
-        showErrorMessage('Error,Invalid Otp');
-        setLoading(false);
+        showErrorMessage(response?.message || 'Invalid Otp');
         setOtpArray(Array(otpLength).fill(''));
         refArray.current[0].current.focus();
       }
-      setLoading(false);
     } catch (e) {
-      console.log(e);
       setLoading(false);
+      const serverMessage = e?.response?.data?.message;
+      console.log('Verify signup email failed:', serverMessage || e?.message);
+      showErrorMessage(serverMessage || 'Invalid Otp');
+      setOtpArray(Array(otpLength).fill(''));
+      refArray.current[0].current.focus();
     }
   };
   return (

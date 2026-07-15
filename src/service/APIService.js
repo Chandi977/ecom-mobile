@@ -1,6 +1,6 @@
 import axios from 'axios';
 import StorageService from '../utils/storageService';
-import { BASE_URL, API_ENDPOINTS } from '../service/APIConfig';
+import { BASE_URL, FALLBACK_BASE_URL, API_ENDPOINTS } from '../service/APIConfig';
 
 const apiClient = axios.create({
   baseURL: BASE_URL,
@@ -27,6 +27,11 @@ const summarizeResponse = data => {
   }
 
   return summary;
+};
+
+const canRetryOnFallbackBackend = error => {
+  const status = error?.response?.status;
+  return !status || [404, 502, 503, 504].includes(status);
 };
 
 apiClient.interceptors.request.use(
@@ -104,6 +109,30 @@ const ApiService = {
     }
   },
 
+  async postWithFallbackBackend(endpoint, data = {}, config = {}) {
+    try {
+      return await ApiService.post(endpoint, data, config);
+    } catch (error) {
+      if (
+        !FALLBACK_BASE_URL ||
+        FALLBACK_BASE_URL === BASE_URL ||
+        !canRetryOnFallbackBackend(error)
+      ) {
+        throw error;
+      }
+
+      try {
+        const response = await apiClient.post(endpoint, data, {
+          ...config,
+          baseURL: FALLBACK_BASE_URL,
+        });
+        return response.data;
+      } catch (fallbackError) {
+        throw this._handleError(fallbackError);
+      }
+    }
+  },
+
   async put(endpoint, data = {}, config = {}) {
     try {
       const response = await apiClient.put(endpoint, data, config);
@@ -154,11 +183,16 @@ const ApiService = {
   },
 
   async GOOGLE_LOGIN(data) {
-    return ApiService.post(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, data);
+    return ApiService.postWithFallbackBackend(API_ENDPOINTS.AUTH.GOOGLE_LOGIN, data);
   },
 
   async VERIFY_SIGN_UP_USER_EMAIL(data) {
     return ApiService.post(API_ENDPOINTS.AUTH.VERIFY_SIGN_UP_USER_EMAIL, data);
+  },
+
+  // Re-issues the signup verification OTP (expects { email }).
+  async RE_VERIFY_EMAIL(data) {
+    return ApiService.post(API_ENDPOINTS.AUTH.RE_VERIFY_EMAIL, data);
   },
 
   async SEND_OTP_ON_EMAIL(data) {
@@ -182,6 +216,28 @@ const ApiService = {
 
   async GET_SINGLE_PRODUCT(id) {
     return ApiService.get(`${API_ENDPOINTS.PRODUCTS.GET_SINGLE_PRODUCT}${id}`);
+  },
+
+  // Fetch a fully-populated product by slug (product detail's preferred path —
+  // matches the web SSR fetch, so the detail screen never renders a stale/partial
+  // list object).
+  async GET_PRODUCT_BY_SLUG(slug) {
+    return ApiService.get(
+      `${API_ENDPOINTS.PRODUCTS.GET_PRODUCT_BY_SLUG}${encodeURIComponent(slug)}`,
+    );
+  },
+
+  // Curated related/buy-it-with products are stored as an array of product ids;
+  // resolve each to a full product (with signed images) by id.
+  async GET_RELATED_PRODUCT_DETAILS_BY_ID(id) {
+    return ApiService.get(`${API_ENDPOINTS.PRODUCTS.GET_SINGLE_PRODUCT}${id}`);
+  },
+
+  // Server-side, paginated catalog filtering — the scalable replacement for
+  // pulling GET_ALL_PRODUCTS and filtering on the client. Accepts
+  // { category, brand, subcategory, q, skip, limit, includeMeta, ...ranges }.
+  async FILTER_PRODUCTS(payload = {}) {
+    return ApiService.post(API_ENDPOINTS.PRODUCTS.FILTER_PRODUCTS, payload);
   },
 
   async SEARCH_PRODUCT(params) {
@@ -337,11 +393,11 @@ const ApiService = {
   },
 
   async REGISTER_DEVICE(data) {
-    return ApiService.post(API_ENDPOINTS.NOTIFICATIONS.REGISTER_DEVICE, data);
+    return ApiService.postWithFallbackBackend(API_ENDPOINTS.NOTIFICATIONS.REGISTER_DEVICE, data);
   },
 
   async UNREGISTER_DEVICE(data) {
-    return ApiService.post(API_ENDPOINTS.NOTIFICATIONS.UNREGISTER_DEVICE, data);
+    return ApiService.postWithFallbackBackend(API_ENDPOINTS.NOTIFICATIONS.UNREGISTER_DEVICE, data);
   },
 
   _handleError(error) {

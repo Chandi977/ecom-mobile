@@ -70,14 +70,18 @@ const UpdatePassword = props => {
       console.log(payload);
       try {
         const response = await ApiService.CHANGE_PASSWORD(payload);
-        console.log(response, 'Line 74');
-
         setIsLoading(false);
         if (response && response?.message === 'Password updated successfully') {
           navigation.replace('SuccessScreen', { come: 'forgetPassword' });
+        } else {
+          setErrorText(response?.message || 'Could not update the password. Please try again.');
         }
       } catch (e) {
-        console.log(e);
+        setIsLoading(false);
+        // e.g. "OTP not verified..." or validation errors come back as 400s.
+        const serverMessage = e?.response?.data?.message;
+        console.log('Password update failed:', serverMessage || e?.message);
+        setErrorText(serverMessage || 'Could not update the password. Please try again.');
       }
     }
   };

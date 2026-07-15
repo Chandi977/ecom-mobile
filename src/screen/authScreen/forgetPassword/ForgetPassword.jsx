@@ -69,26 +69,32 @@ const ForgetPassword = () => {
     }
   };
   const sendCode = async email => {
-    navigation.replace('Otp', { email: email });
     setIsLoading(true);
     try {
       const Data = {
-        email: email,
+        email: email.trim().toLowerCase(),
       };
       const response = await ApiService.SEND_OTP_ON_EMAIL(Data);
-      console.log(response);
-      if (response?.message === 'User not found') {
-        setIsLoading(false);
-        setErrorText('You are not a registered User!!');
-      }
+      setIsLoading(false);
       if (response && response?.message === 'OTP generated successfully') {
-        setIsLoading(false);
-        navigation.replace('Otp', { email: email });
         setEmail('');
+        navigation.replace('Otp', {
+          email: Data.email,
+          initial: 'forgetPassword',
+        });
+      } else {
+        setErrorText(response?.message || 'Could not send the OTP. Please try again.');
       }
     } catch (e) {
       setIsLoading(false);
-      console.log(e?.message);
+      // 404 "User not found" and other server rejections land here.
+      const serverMessage = e?.response?.data?.message;
+      console.log('Send OTP failed:', serverMessage || e?.message);
+      if (serverMessage === 'User not found') {
+        setErrorText('You are not a registered User!!');
+      } else {
+        setErrorText(serverMessage || 'Could not send the OTP. Please check your connection.');
+      }
     }
   };
 

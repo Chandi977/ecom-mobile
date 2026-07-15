@@ -1,5 +1,11 @@
-import { SafeAreaView, StatusBar, StyleSheet, Text, View } from 'react-native';
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, View } from 'react-native';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+} from 'react';
 import Colors from '../../utils/Colors';
 import Header from '../General/Header';
 import PopularProducts from './popularProducts';
@@ -18,16 +24,33 @@ import {
   buildEntityNameById,
   getProductBrandName,
 } from '../../utils/productFields';
+import { getPrimaryPriceTier } from '../../utils/productCatalog';
+
+const PAGE_SIZE = 20;
 
 const CategoryDetailsTwo = ({ route }) => {
   const navigation = useNavigation();
-  const [originalData] = useState(route.params.data);
-  const [filteredData, setFilteredData] = useState(route.params.data);
+  const { categories, data, option, serverFilter } = route.params;
+
+  // When a serverFilter (category/brand ids) is supplied we page the catalog
+  // server-side via /product/filter instead of relying on the full client list
+  // handed over in nav params. The nav `data` still seeds the first paint so
+  // there's no blank flash while page 1 loads.
+  const canPaginate = Boolean(
+    serverFilter &&
+      (serverFilter.category || serverFilter.brand || serverFilter.subcategory),
+  );
+
+  const [products, setProducts] = useState(route.params.data || []);
+  const [skip, setSkip] = useState(0);
+  const [hasMore, setHasMore] = useState(canPaginate);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const loadingRef = useRef(false);
+
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [brandNameById, setBrandNameById] = useState({});
-  const { categories, data, option } = route.params;
-  console.log(data, 'line 24');
+
   // Ajio gate resolved by brand name (from nav params or the fetched id->name
   // map), so no brand ObjectId is hardcoded.
   const isAjioBrand =
@@ -35,6 +58,7 @@ const CategoryDetailsTwo = ({ route }) => {
       .toString()
       .trim()
       .toLowerCase() === 'ajio';
+
   const [activeFilters, setActiveFilters] = useState({
     sort: null,
     size: { length: 0, width: 0, height: 0 },
@@ -42,40 +66,51 @@ const CategoryDetailsTwo = ({ route }) => {
     brands: [],
   });
 
-  const applyAllFilters = useCallback(() => {
-    let result = [...originalData];
+  const fetchPage = useCallback(
+    async (reset = false) => {
+      if (!canPaginate || loadingRef.current) return;
+      loadingRef.current = true;
+      setLoadingMore(true);
+      const nextSkip = reset ? 0 : skip;
+      try {
+        const response = await ApiService.FILTER_PRODUCTS({
+          ...serverFilter,
+          skip: nextSkip,
+          limit: PAGE_SIZE,
+          includeMeta: true,
+        });
+        const page = response?.data || [];
+        setProducts(prev => (reset ? page : [...prev, ...page]));
+        setSkip(nextSkip + page.length);
+        setHasMore(response?.meta?.hasMore ?? page.length === PAGE_SIZE);
+      } catch (error) {
+        console.log('Error fetching filtered products', error?.message);
+        // Keep whatever we already have (the nav-param seed) and stop paging.
+        setHasMore(false);
+      } finally {
+        loadingRef.current = false;
+        setLoadingMore(false);
+      }
+    },
+    [canPaginate, serverFilter, skip],
+  );
 
-    // Apply size filter first
-    if (
-      activeFilters.size.length > 0 ||
-      activeFilters.size.width > 0 ||
-      activeFilters.size.height > 0
-    ) {
-      result = filterBySize(result, activeFilters.size);
-    }
-
-    // Apply category filter
-    if (activeFilters.categories.length > 0) {
-      result = filterByCategory(result, activeFilters.categories);
-    }
-
-    // Apply brand filter
-    if (activeFilters.brands.length > 0) {
-      result = filterByBrand(result, activeFilters.brands);
-    }
-
-    // Apply sort last
-    if (activeFilters.sort) {
-      result = sortData(result, activeFilters.sort);
-    }
-
-    setFilteredData(result);
-  }, [originalData, activeFilters]);
-
+  // Initial server page (only when we can paginate). Runs once on mount.
   useEffect(() => {
-    applyAllFilters();
-  }, [applyAllFilters]);
+    if (canPaginate) {
+      fetchPage(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
+  const loadMore = useCallback(() => {
+    if (canPaginate && hasMore && !loadingRef.current) {
+      fetchPage(false);
+    }
+  }, [canPaginate, hasMore, fetchPage]);
+
+  // ─── Client-side sort / size / category / brand filters ───────────────
+  // Applied to the currently-loaded set (server-paged or nav-seeded).
   const filterBySize = (dataToFilter, { length, width, height }) => {
     const parseSize = sizeString => {
       if (!sizeString) return { length: 0, width: 0, height: 0 };
@@ -97,81 +132,72 @@ const CategoryDetailsTwo = ({ route }) => {
     });
   };
 
-  const handleFilterBySize = (length, width, height) => {
-    setActiveFilters(prev => ({
-      ...prev,
-      size: { length, width, height },
-    }));
-  };
-
-  const sortData = (dataToSort, option) => {
-    let sortedArray = [...dataToSort];
-
-    switch (option) {
+  const sortData = (dataToSort, sortOption) => {
+    const sortedArray = [...dataToSort];
+    switch (sortOption) {
       case 'highToLow':
-        sortedArray.sort((a, b) => b.priceList[0]?.SP - a.priceList[0]?.SP);
+        sortedArray.sort(
+          (a, b) => getPrimaryPriceTier(b).SP - getPrimaryPriceTier(a).SP,
+        );
         break;
       case 'lowToHigh':
-        sortedArray.sort((a, b) => a.priceList[0]?.SP - b.priceList[0]?.SP);
+        sortedArray.sort(
+          (a, b) => getPrimaryPriceTier(a).SP - getPrimaryPriceTier(b).SP,
+        );
         break;
       default:
-        // No sorting
         break;
     }
     return sortedArray;
   };
 
-  const handleSort = option => {
-    setActiveFilters(prev => ({
-      ...prev,
-      sort: option,
-    }));
-  };
-
-  const filterByCategory = (dataToFilter, selectedCategories) => {
-    return dataToFilter.filter(product => {
-      return Object.values(product).some(value => {
+  const filterByValues = (dataToFilter, selectedValues) => {
+    return dataToFilter.filter(product =>
+      Object.values(product).some(value => {
         if (Array.isArray(value)) {
-          return value.some(val => selectedCategories.includes(val));
-        } else if (typeof value === 'object' && value !== null) {
-          return Object.values(value).some(val =>
-            selectedCategories.includes(val),
-          );
-        } else {
-          return selectedCategories.includes(value);
+          return value.some(val => selectedValues.includes(val));
         }
-      });
-    });
+        if (typeof value === 'object' && value !== null) {
+          return Object.values(value).some(val => selectedValues.includes(val));
+        }
+        return selectedValues.includes(value);
+      }),
+    );
   };
 
+  const filteredData = useMemo(() => {
+    let result = [...products];
+
+    if (
+      activeFilters.size.length > 0 ||
+      activeFilters.size.width > 0 ||
+      activeFilters.size.height > 0
+    ) {
+      result = filterBySize(result, activeFilters.size);
+    }
+    if (activeFilters.categories.length > 0) {
+      result = filterByValues(result, activeFilters.categories);
+    }
+    if (activeFilters.brands.length > 0) {
+      result = filterByValues(result, activeFilters.brands);
+    }
+    if (activeFilters.sort) {
+      result = sortData(result, activeFilters.sort);
+    }
+    return result;
+  }, [products, activeFilters]);
+
+  const handleFilterBySize = (length, width, height) => {
+    setActiveFilters(prev => ({ ...prev, size: { length, width, height } }));
+  };
+  const handleSort = sortOption => {
+    setActiveFilters(prev => ({ ...prev, sort: sortOption }));
+  };
   const handleFilterByCategory = selectedCategories => {
-    setActiveFilters(prev => ({
-      ...prev,
-      categories: selectedCategories,
-    }));
+    setActiveFilters(prev => ({ ...prev, categories: selectedCategories }));
   };
-
-  const filterByBrand = (dataToFilter, selectedBrandIds) => {
-    return dataToFilter.filter(product => {
-      return Object.values(product).some(value => {
-        if (Array.isArray(value)) {
-          return value.some(val => selectedBrandIds.includes(val));
-        } else if (typeof value === 'object' && value !== null) {
-          return Object.values(value).some(val =>
-            selectedBrandIds.includes(val),
-          );
-        } else {
-          return selectedBrandIds.includes(value);
-        }
-      });
-    });
-  };
-
   const handleFilterByBrand = selectedBrandIds => {
-    setActiveFilters(prev => ({
-      ...prev,
-      brands: selectedBrandIds,
-    }));
+    setActiveFilters(prev => ({ ...prev, brands: selectedBrandIds }));
   };
 
   const renderBrandMessage = () => {
@@ -215,19 +241,16 @@ const CategoryDetailsTwo = ({ route }) => {
   }, []);
 
   const getDropdownText = item => {
-    const brandName = getProductBrandName(item, brandNameById) || 'Unknown Brand';
+    const brandName =
+      getProductBrandName(item, brandNameById) || 'Unknown Brand';
     return `${brandName} - ${item.name} - ${item.model}`;
   };
-  const filteredResults = searchResults.filter(item => {
-    const dropdownText = getDropdownText(item);
-    return dropdownText.toLowerCase().includes(searchText.toLowerCase());
-  });
+  const filteredResults = searchResults;
 
   const searchProducts = useCallback(async query => {
-    const data = { search: query };
+    const payload = { search: query };
     try {
-      const response = await ApiService.HOME_PRODUCTS_SEARCH(data);
-      // console.log(response, "Line 23");
+      const response = await ApiService.HOME_PRODUCTS_SEARCH(payload);
       setSearchResults(response?.data || []);
     } catch (error) {
       console.error(error);
@@ -256,8 +279,12 @@ const CategoryDetailsTwo = ({ route }) => {
     setSearchText('');
     setSearchResults([]);
   };
+
   return (
-    <WrapperContainer backgroundColor={Colors.white} statusBarStyle={"dark-content"}>
+    <WrapperContainer
+      backgroundColor={Colors.white}
+      statusBarStyle={'dark-content'}
+    >
       <View style={styles.main}>
         <Header
           title={
@@ -273,7 +300,7 @@ const CategoryDetailsTwo = ({ route }) => {
           onFilterByBrand={handleFilterByBrand}
           categories={categories}
           filteredData={filteredData}
-          originalData={originalData}
+          originalData={products}
         />
         <View
           style={{
@@ -295,7 +322,12 @@ const CategoryDetailsTwo = ({ route }) => {
         ) : (
           <View style={styles.productHolder}>
             {filteredData?.length > 0 ? (
-              <PopularProducts data={filteredData} />
+              <PopularProducts
+                data={filteredData}
+                brandNameById={brandNameById}
+                onEndReached={loadMore}
+                loadingMore={loadingMore}
+              />
             ) : (
               <View style={styles.noProductContainer}>
                 <Text style={styles.nameText}>No Products Found</Text>
@@ -316,11 +348,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
   },
   productHolder: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: moderateScale(15),
-    alignSelf: 'center',
-    justifyContent: 'center',
     backgroundColor: Colors.back,
     width: '100%',
     flex: 1,

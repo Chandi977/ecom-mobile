@@ -26,6 +26,7 @@ import {
   moderateScale,
   moderateVerticalScale,
   textScale,
+  width,
 } from "../utils/responsiveSize";
 import FontFamily from "../utils/FontFamily";
 import StorageService from "../utils/storageService";
@@ -400,7 +401,7 @@ function CustomDrawerContent(props) {
 
   return (
     <WrapperContainer backgroundColor={Colors.forgetPassword}>
-    <View style={{ flex: 1, backgroundColor: "white",marginTop:moderateVerticalScale(-25) }}>
+    <View style={{ flex: 1, backgroundColor: "white" }}>
       <View style={[styles.upperView]}>
         <TouchableOpacity
           style={{
@@ -427,7 +428,14 @@ function CustomDrawerContent(props) {
             </Text>
           </View>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconView} onPress={closeDrawer}>
+        <TouchableOpacity
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Close sidebar menu"
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          style={styles.iconView}
+          onPress={closeDrawer}
+        >
           <AntDesign name="close" color={Colors.white} size={textScale(25)} />
         </TouchableOpacity>
       </View>
@@ -452,7 +460,12 @@ export default function DrawerNavigation() {
 
   return (
     <Drawer.Navigator
-      screenOptions={{ drawerType: "front" }}
+      screenOptions={{
+        drawerType: "front",
+        drawerStyle: {
+          width: Math.min(width * 0.86, moderateScale(340)),
+        },
+      }}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       initialRouteName="Dashboard"
     >
@@ -469,11 +482,12 @@ const styles = StyleSheet.create({
   upperView: {
     backgroundColor: Colors.forgetPassword,
     width: "100%",
-    height: "10%",
+    minHeight: moderateVerticalScale(78),
     flexDirection: "row",
     alignItems: "center",
     gap: moderateScale(10),
     padding: moderateScale(10),
+    paddingRight: moderateScale(56),
   },
   mainView: {
     flexDirection: "row",
@@ -488,7 +502,13 @@ const styles = StyleSheet.create({
   },
   iconView: {
     position: "absolute",
-    right: "3%",
+    right: moderateScale(8),
+    top: moderateVerticalScale(12),
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
+    alignItems: "center",
+    justifyContent: "center",
   },
   userName: {
     fontSize: textScale(16),

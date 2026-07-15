@@ -1,4 +1,4 @@
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import Home from "../screen/appScreens/Home";
@@ -12,77 +12,68 @@ import {
   UserIcon as UserSolid,
 } from "react-native-heroicons/solid";
 import Wishlist from "../components/Profile/Wishlist";
-import { moderateScale, textScale } from "../utils/responsiveSize";
+import {
+  moderateScale,
+  moderateVerticalScale,
+  textScale,
+} from "../utils/responsiveSize";
 import FontFamily from "../utils/FontFamily";
 const Tab = createBottomTabNavigator();
+
+const TAB_LABELS = {
+  Home: "Home",
+  Favorite: "Wishlist",
+  Cart: "Cart",
+  Profile: "User",
+};
+
+const TabBarButton = props => (
+  <TouchableOpacity {...props} activeOpacity={0.82} />
+);
+
 const BottomNavigation = () => {
   return (
     <Tab.Navigator
-      screenOptions={({ route, focused }) => ({
+      screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarButton: props => (
-          <TouchableOpacity {...props} activeOpacity={1} />
-        ),
-        tabBarShowLabel: false,
-        tabBarLabelPosition: "beside-icon",
-        tabBarIcon: ({ focused, color, size }) => menuIcons(route, focused),
-        tabBarStyle: {
-          borderTopLeftRadius: moderateScale(40),
-          borderTopRightRadius: moderateScale(40),
-          height:
-            Platform.OS === "android" ? moderateScale(75) : moderateScale(90),
-          width: "100%",
-          backgroundColor: Colors.white,
-          overflow: "hidden",
-          paddingHorizontal: moderateScale(15),
-        },
+        tabBarButton: TabBarButton,
+        tabBarShowLabel: true,
+        tabBarLabel: TAB_LABELS[route.name] || route.name,
+        tabBarIcon: ({ focused }) => menuIcons(route.name, focused),
+        tabBarActiveTintColor: Colors.brandColor,
+        tabBarInactiveTintColor: Colors.text_grey,
+        tabBarLabelStyle: styles.tabBarLabel,
+        tabBarItemStyle: styles.tabBarItem,
+        tabBarStyle: styles.tabBar,
+        tabBarAccessibilityLabel: TAB_LABELS[route.name] || route.name,
         tabBarHideOnKeyboard: true,
       })}
     >
       <Tab.Screen name="Home" component={Home} />
       <Tab.Screen name="Favorite" component={Wishlist} />
       <Tab.Screen name="Cart" component={Cart} />
-       <Tab.Screen name="Profile" component={Profile} /> 
+      <Tab.Screen name="Profile" component={Profile} />
     </Tab.Navigator>
   );
 };
 
-const menuIcons = (route, focused) => {
+const menuIcons = (routeName, focused) => {
   let icon;
-  let iconSize = focused ? 20 : 30;
-  let iconColor = focused ? "white" : Colors.brandColor;
-  if (route.name === "Home") {
+  const iconSize = moderateScale(22);
+  const iconColor = focused ? Colors.white : Colors.text_grey;
+  if (routeName === "Home") {
     icon = <HomeSolid size={iconSize} color={iconColor} />;
-  } else if (route.name === "Favorite") {
+  } else if (routeName === "Favorite") {
     icon = <HeartSolid size={iconSize} color={iconColor} />;
-  } else if (route.name === "Cart") {
+  } else if (routeName === "Cart") {
     icon = <CartSolid size={iconSize} color={iconColor} />;
-  } else if (route.name === "Profile") {
+  } else if (routeName === "Profile") {
     icon = <UserSolid size={iconSize} color={iconColor} />;
   }
 
   return (
-    <View style={[styles.tabBarItem, { width: focused ? 125 : 50 }]}>
-      <View
-        style={[
-          styles.icon,
-          {
-            backgroundColor: focused ? "red" : "",
-          },
-        ]}
-      >
-        {icon}
-      </View>
-      {focused && (
-        <Text
-          style={[
-            styles.label,
-            { backgroundColor: focused ? Colors.bottomTextBackGround : "" },
-          ]}
-        >
-          {route.name}
-        </Text>
-      )}
+    <View style={[styles.iconCircle, focused && styles.iconCircleActive]}>
+      {icon}
     </View>
   );
 };
@@ -90,24 +81,46 @@ const menuIcons = (route, focused) => {
 export default BottomNavigation;
 
 const styles = StyleSheet.create({
-  icon: {
-    borderRadius: moderateScale(100),
-    padding: 5,
-    backgroundColor: Colors.bottomTextBackGround,
-  },
-  label: {
-    color: Colors.forgetPassword,
-    fontSize: textScale(12),
-    fontFamily: FontFamily.Montserrat_SemiBold,
-    padding: moderateScale(5),
+  tabBar: {
+    height:
+      Platform.OS === "android"
+        ? moderateVerticalScale(72)
+        : moderateVerticalScale(86),
+    backgroundColor: Colors.white,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Colors.border_grey,
+    paddingTop: moderateVerticalScale(6),
+    paddingBottom:
+      Platform.OS === "android"
+        ? moderateVerticalScale(8)
+        : moderateVerticalScale(20),
+    paddingHorizontal: moderateScale(8),
+    elevation: 14,
+    shadowColor: Colors.black,
+    shadowOpacity: 0.1,
+    shadowRadius: moderateScale(10),
+    shadowOffset: { width: 0, height: -3 },
   },
   tabBarItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    padding:moderateScale(5),
+    minHeight: moderateVerticalScale(58),
     justifyContent: "center",
-    borderRadius: moderateScale(30),
-    backgroundColor: Colors.bottomTextBackGround,
-    overflow: "hidden",
+    paddingVertical: moderateVerticalScale(2),
+  },
+  tabBarLabel: {
+    fontSize: textScale(11),
+    fontFamily: FontFamily.Montserrat_SemiBold,
+    marginTop: moderateVerticalScale(2),
+    letterSpacing: 0,
+  },
+  iconCircle: {
+    width: moderateScale(36),
+    height: moderateScale(36),
+    borderRadius: moderateScale(18),
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: Colors.white,
+  },
+  iconCircleActive: {
+    backgroundColor: Colors.brandColor,
   },
 });

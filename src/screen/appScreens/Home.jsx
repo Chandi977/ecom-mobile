@@ -44,7 +44,6 @@ import {
   getEntityIdByName,
   getProductBrandId,
   getProductBrandName,
-  getProductCategoryId,
 } from '../../utils/productFields';
 
 const Home = () => {
@@ -101,14 +100,12 @@ const Home = () => {
   };
 
   const getDropdownText = item => {
-    const brandName = getProductBrandName(item, brandNameById) || 'Unknown Brand';
+    const brandName =
+      getProductBrandName(item, brandNameById) || 'Unknown Brand';
     return `${brandName} - ${item.name} - ${item.model}`;
   };
 
-  const filteredResults = searchResults.filter(item => {
-    const dropdownText = getDropdownText(item);
-    return dropdownText.toLowerCase().includes(searchText.toLowerCase());
-  });
+  const filteredResults = searchResults;
 
   useEffect(() => {
     getAllProducts();
@@ -180,40 +177,6 @@ const Home = () => {
     }
   };
 
-  const handleCategoriesClicked = async list => {
-    setNavigating(true);
-    try {
-      setTimeout(async () => {
-        let filteredData = [];
-
-        if (list.name === 'Tape') {
-          const tapeCategories = [
-            '6557df64301ec4f2f4266141',
-            '6557df71301ec4f2f4266145',
-            '6642e8f665f20fe41ab417bc',
-          ];
-          filteredData = allProducts.filter(item =>
-            tapeCategories.includes(getProductCategoryId(item)),
-          );
-        } else {
-          filteredData = allProducts.filter(
-            item => getProductCategoryId(item) === list?.category_id,
-          );
-        }
-
-        navigation.navigate('CategoryDetailsTwo', {
-          categories: list,
-          data: filteredData,
-          option: 'cat',
-        });
-        setNavigating(false); // Hide loader after delay
-      }, 1000); // Add 1-second delay
-    } catch (error) {
-      console.log('Error navigating to category', error);
-      setNavigating(false); // Hide loader on error
-    }
-  };
-
   const handleBrandCLicked = async brand => {
     setNavigating(true);
     try {
@@ -226,6 +189,9 @@ const Home = () => {
             item => getProductBrandId(item) === resolvedBrandId,
           ),
           option: 'brand',
+          serverFilter: resolvedBrandId
+            ? { brand: resolvedBrandId }
+            : undefined,
         });
         setNavigating(false);
       }, 1000);
@@ -262,7 +228,8 @@ const Home = () => {
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.updateBanner}
-            onPress={() => Linking.openURL(updateStoreUrl)}>
+            onPress={() => Linking.openURL(updateStoreUrl)}
+          >
             <Text style={styles.updateBannerText}>
               New update available! Tap to update the app.
             </Text>
@@ -342,6 +309,7 @@ const Home = () => {
                   ) : (
                     <HomePopularProduct
                       data={filteredProducts}
+                      brandNameById={brandNameById}
                       cartValueChanged={cartValueChanged}
                       wishlistValueChanged={wishListValueChanged}
                       setCartValueChanged={setCartValueChanged}
@@ -362,6 +330,7 @@ const Home = () => {
                   ) : (
                     <HomePopularProduct
                       data={dealProduct}
+                      brandNameById={brandNameById}
                       cartValueChanged={cartValueChanged}
                       wishlistValueChanged={wishListValueChanged}
                       setCartValueChanged={setCartValueChanged}

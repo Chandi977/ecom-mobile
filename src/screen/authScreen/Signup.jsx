@@ -105,12 +105,6 @@ export default function Signup({ route }) {
 
 
   const handleSignUp = async () => {
-    navigation.push('Otp', {
-                  email: email,
-                  initial: 'registration',
-                }),
-    console.log('Clicked on the button');
-
     let isValid = true;
 
     // Validate First Name
@@ -196,49 +190,47 @@ export default function Signup({ route }) {
 
     try {
       setLoading(true);
-        const response = await ApiService.SIGNUP_USER(data);
+      const response = await ApiService.SIGNUP_USER(data);
       if (response?.success) {
+        // Clear the form only after a confirmed successful signup.
+        setFirstName('');
+        setLastName('');
+        setEmail('');
+        setMobile('');
+        setSelectedRole('Select Role');
+        setSelectedGender('Select Gender');
+        setPassword('');
+        setConfirmPassword('');
+
         Alert.alert(
           'Sign Up',
-          'Your account was created successfully! Please verify your account to proceed further.',
+          'Your account was created successfully! Please check your email for the verification code.',
           [
-            {
-              text: 'Cancel',
-              onPress: () => console.log('Cancel Pressed'),
-              style: 'cancel',
-            },
             {
               text: 'OK',
               onPress: () =>
                 navigation.push('Otp', {
-                  email: email,
+                  email: data.email_address,
                   initial: 'registration',
                   fromProductDetails,
                 }),
             },
           ],
         );
-      } else if (
-        response?.success === false &&
-        response?.message === 'User already exists.'
-      ) {
-        Alert.alert('Sign Up Error', response?.message);
+      } else {
+        Alert.alert('Sign Up Error', response?.message || 'Sign up failed. Please try again.');
       }
     } catch (error) {
-      console.error('Sign Up Error:', error);
-      Alert.alert('Error', 'Something went wrong. Please try again later.');
+      // Backend rejections (409/403/400) arrive here as axios errors — surface
+      // the server's message ("User already exists.", validation errors, ...).
+      const serverMessage = error?.response?.data?.message;
+      console.log('Sign Up Error:', serverMessage || error?.message);
+      Alert.alert(
+        'Sign Up Error',
+        serverMessage || 'Something went wrong. Please try again later.',
+      );
     } finally {
       setLoading(false);
-
-      // Clear Input Fields
-      setFirstName('');
-      setLastName('');
-      setEmail('');
-      setMobile('');
-      setSelectedRole('Select Role');
-      setSelectedGender('Select Gender');
-      setPassword('');
-      setConfirmPassword('');
     }
   };
 

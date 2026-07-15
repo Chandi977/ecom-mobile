@@ -24,6 +24,7 @@ import {
 import FontFamily from '../../utils/FontFamily';
 import AntDesign from 'react-native-vector-icons/AntDesign';
 import FastImage from 'react-native-fast-image';
+import ProductImage from '../../components/product/ProductImage';
 import { showMessage } from 'react-native-flash-message';
 import WrapperContainer from '../../utils/WrapperContainer';
 import StorageService from '../../utils/storageService';
@@ -326,13 +327,9 @@ export default function Cart() {
                       <FadeInUp key={index} delay={Math.min(index, 6) * 60}>
                         <View style={styles.card}>
                           <View style={styles.cartImageHolder}>
-                            <FastImage
+                            <ProductImage
+                              product={item?.product}
                               style={styles.cartImage}
-                              source={{
-                                uri: item?.product?.images[0]?.image,
-                                priority: FastImage.priority.high,
-                                cache: FastImage.cacheControl.web,
-                              }}
                               resizeMode={FastImage.resizeMode.cover}
                             />
                           </View>

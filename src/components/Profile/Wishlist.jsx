@@ -25,6 +25,10 @@ import {
   buildEntityNameById,
   getProductBrandName,
 } from '../../utils/productFields';
+import {
+  getPrimaryPriceTier,
+  getProductImageUri,
+} from '../../utils/productCatalog';
 
 const Wishlist = () => {
   const navigation = useNavigation();
@@ -136,7 +140,8 @@ const Wishlist = () => {
                         style={styles.cartImage}
                         source={{
                           uri:
-                            item?.product?.images[0]?.image || placeholderImage,
+                            getProductImageUri(item?.product) ||
+                            placeholderImage,
                           priority: FastImage.priority.high,
                           cache: FastImage.cacheControl.immutable,
                         }}
@@ -198,7 +203,7 @@ const Wishlist = () => {
                     </View>
                     <View style={styles.priceHolder}>
                       <Text style={styles.priceText}>
-                        ₹ {item?.product?.priceList[0]?.SP}
+                        ₹ {item?.price ?? getPrimaryPriceTier(item?.product).SP}
                       </Text>
                     </View>
                   </TouchableOpacity>

@@ -5,16 +5,16 @@ import {
   TextInput,
   TouchableOpacity,
   View,
-} from "react-native";
-import React from "react";
-import MaterialIcons from "react-native-vector-icons/MaterialIcons";
-import Colors from "../../utils/Colors";
+} from 'react-native';
+import React from 'react';
+import MaterialIcons from 'react-native-vector-icons/MaterialIcons';
+import Colors from '../../utils/Colors';
 import {
   moderateScale,
   moderateVerticalScale,
   textScale,
-} from "../../utils/responsiveSize";
-import FontFamily from "../../utils/FontFamily";
+} from '../../utils/responsiveSize';
+import FontFamily from '../../utils/FontFamily';
 
 const HomeSearch = ({
   placeholder,
@@ -58,7 +58,17 @@ const HomeSearch = ({
         </View>
       ) : (
         searchText.length > 0 && (
-          <Text style={{ padding: 10, color: "red",fontFamily:FontFamily.Montserrat_Medium,textAlign:'center',fontSize:textScale(14) }}>No Product found</Text>
+          <Text
+            style={{
+              padding: 10,
+              color: 'red',
+              fontFamily: FontFamily.Montserrat_Medium,
+              textAlign: 'center',
+              fontSize: textScale(14),
+            }}
+          >
+            No Product found
+          </Text>
         )
       )}
     </>
@@ -70,18 +80,19 @@ export default HomeSearch;
 const styles = StyleSheet.create({
   searchBoxHolder: {
     borderWidth: moderateScale(2),
-    width: "90%",
-    alignSelf: "center",
+    width: '90%',
+    alignSelf: 'center',
     borderRadius: moderateScale(5),
     paddingHorizontal: moderateScale(10),
-    flexDirection: "row",
-    alignItems: "center",
+    minHeight: moderateVerticalScale(46),
+    flexDirection: 'row',
+    alignItems: 'center',
     borderColor: Colors.back,
     backgroundColor: Colors.back,
   },
   textInput: {
-    height: "100%",
-    width: "90%",
+    flex: 1,
+    minHeight: moderateVerticalScale(44),
     paddingHorizontal: moderateScale(10),
     fontFamily: FontFamily.Montserrat_SemiBold,
     fontSize: textScale(16),
@@ -89,8 +100,8 @@ const styles = StyleSheet.create({
   },
   itemHolder: {
     borderWidth: 2,
-    width: "85%",
-    alignSelf: "center",
+    width: '85%',
+    alignSelf: 'center',
     marginBottom: moderateVerticalScale(5),
     backgroundColor: Colors.back,
     borderRadius: moderateScale(5),

@@ -2,6 +2,7 @@ import ApiService from './APIService';
 import GuestCartService from '../utils/GuestCartService';
 import StorageService from '../utils/storageService';
 import { parseStoredUser } from '../utils/HelperFunction';
+import { getPrimaryPriceTier } from '../utils/productCatalog';
 
 /**
  * CartService — the single entry point for all cart mutations.
@@ -45,7 +46,7 @@ async function getCurrentUserId() {
  */
 function buildServerCartItem(product, options, userId) {
   const { packSize, price, quantity, brand, category } = options || {};
-  const firstTier = product?.priceList?.[0] || {};
+  const firstTier = getPrimaryPriceTier(product);
 
   const item = {
     product: product?._id,
@@ -130,7 +131,7 @@ const CartService = {
    */
   async addToCart(product, options = {}) {
     const userId = await getCurrentUserId();
-    const firstTier = product?.priceList?.[0] || {};
+    const firstTier = getPrimaryPriceTier(product);
     const {
       packSize = firstTier.number,
       price = firstTier.SP,

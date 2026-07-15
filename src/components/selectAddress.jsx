@@ -24,6 +24,7 @@ import {
 import FontFamily from '../utils/FontFamily';
 import { useNavigation } from '@react-navigation/native';
 import FastImage from 'react-native-fast-image';
+import ProductImage from './product/ProductImage';
 import FontAwesome from 'react-native-vector-icons/FontAwesome';
 import { showMessage } from 'react-native-flash-message';
 import WrapperContainer from '../utils/WrapperContainer';
@@ -1098,13 +1099,9 @@ const OrderPlace = async () => {
                       key={index}
                     >
                       <View style={styles.cartImageHolder}>
-                        <FastImage
+                        <ProductImage
+                          product={item?.product}
                           style={styles.cartImage}
-                          source={{
-                            uri: item?.product?.images[0]?.image,
-                            priority: FastImage.priority.high,
-                            cache: FastImage.cacheControl.web,
-                          }}
                           resizeMode={FastImage.resizeMode.contain}
                         />
                       </View>

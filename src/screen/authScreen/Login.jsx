@@ -30,6 +30,7 @@ import WrapperContainer from '../../utils/WrapperContainer';
 import ApiService from '../../service/APIService';
 import { registerForPush } from '../../service/pushNotifications';
 import {
+  getGoogleAndroidDependencyMessage,
   getGoogleAuthConfigMessage,
   getGoogleSigninConfig,
   isGoogleAuthConfigured,
@@ -176,21 +177,48 @@ const Login = () => {
     try {
       setLoading(true);
       const response = await ApiService.LOGIN_USER(loginUser);
-      console.log('Server Response:', response?.data);
       if (response?.success) {
         await persistAuthSession(response?.data);
       } else {
         setShowErrorText(true);
-        setErrorMessage('Invalid Credentials!!');
-        setEmail('');
-        setPassword('');
-        showErrorMessage('Invalid Credentials!!');
+        setErrorMessage(response?.message || 'Invalid Credentials!!');
+        showErrorMessage(response?.message || 'Invalid Credentials!!');
       }
       setLoading(false);
     } catch (e) {
-      console.log(e?.message);
       setLoading(false);
-      setEmail('');
+      // Backend auth failures are 401s, so they land here — read the real
+      // reason instead of showing nothing.
+      const serverMessage = e?.response?.data?.message;
+      console.log('Login error:', serverMessage || e?.message);
+
+      if (serverMessage && /not verified/i.test(serverMessage)) {
+        // Unverified account: re-issue the signup OTP and take the user to the
+        // verification screen instead of a dead-end error.
+        try {
+          await ApiService.RE_VERIFY_EMAIL({ email: email.trim().toLowerCase() });
+          showSuccessMessage('We emailed you a new verification code.');
+        } catch (resendError) {
+          console.log(
+            'Re-verify email failed:',
+            resendError?.response?.data?.message || resendError?.message,
+          );
+        }
+        navigation.navigate('Otp', {
+          email: email.trim().toLowerCase(),
+          initial: 'registration',
+        });
+        return;
+      }
+
+      const displayMessage =
+        serverMessage ||
+        (e?.message === 'Network Error'
+          ? 'Cannot reach the server. Please check your connection.'
+          : 'Invalid Credentials!!');
+      setShowErrorText(true);
+      setErrorMessage(displayMessage);
+      showErrorMessage(displayMessage);
       setPassword('');
     }
   };
@@ -230,9 +258,11 @@ const Login = () => {
         return;
       }
 
+      const authMessage =
+        backendResponse?.message || 'Google authentication failed.';
       setShowErrorText(true);
-      setErrorMessage('Google authentication failed.');
-      showErrorMessage('Google authentication failed.');
+      setErrorMessage(authMessage);
+      showErrorMessage(authMessage);
     } catch (e) {
       if (
         e?.code === statusCodes.SIGN_IN_CANCELLED ||
@@ -248,8 +278,23 @@ const Login = () => {
         return;
       }
 
+      const googleErrorText = `${e?.code || ''} ${e?.message || ''}`;
+      if (/DEVELOPER_ERROR|ApiException:\s*10|\b10\b/i.test(googleErrorText)) {
+        const configMessage = getGoogleAndroidDependencyMessage();
+        setShowErrorText(true);
+        setErrorMessage(configMessage);
+        showErrorMessage(configMessage);
+        return;
+      }
+
       console.log('Google login error:', e?.message);
-      showErrorMessage('Unable to sign in with Google right now.');
+      const serverMessage =
+        e?.response?.data?.message ||
+        e?.response?.data?.error ||
+        'Unable to sign in with Google right now.';
+      setShowErrorText(true);
+      setErrorMessage(serverMessage);
+      showErrorMessage(serverMessage);
     } finally {
       setLoading(false);
     }

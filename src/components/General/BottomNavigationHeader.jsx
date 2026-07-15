@@ -99,12 +99,17 @@ const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
   return (
     <View style={styles.main}>
       <View style={styles.itemHolder}>
-        {/* Menu Icon */}
-        <TouchableOpacity style={styles.menuHolder} onPress={openDrawer}>
-          <Feather name="menu" color={Colors.black} size={textScale(25)} />
+        <TouchableOpacity
+          activeOpacity={0.75}
+          accessibilityRole="button"
+          accessibilityLabel="Open sidebar menu"
+          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+          style={styles.menuHolder}
+          onPress={openDrawer}
+        >
+          <Feather name="menu" color={Colors.black} size={moderateScale(24)} />
         </TouchableOpacity>
 
-        {/* Header Logo */}
         <View style={styles.imageViewHolder}>
           <Image
             style={styles.imageStyle}
@@ -113,13 +118,15 @@ const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
           />
         </View>
 
-        {/* Notifications, Favorite and Cart Icons */}
         <View style={styles.iconHolder}>
           <TouchableOpacity
             onPress={() => navigation.navigate("Notifications")}
-            style={styles.cartContainer}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Notifications"
+            style={[styles.actionButton, styles.cartContainer]}
           >
-            <Feather name="bell" size={moderateScale(28)} color={Colors.black} />
+            <Feather name="bell" size={moderateScale(24)} color={Colors.black} />
             {notifCount > 0 && (
               <Pop trigger={notifCount} style={styles.cartBadge}>
                 <Text style={styles.cartBadgeText}>{notifCount}</Text>
@@ -127,10 +134,16 @@ const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
             )}
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => navigation.navigate("Favorite")}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate("Favorite")}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Wishlist"
+            style={[styles.actionButton, styles.cartContainer]}
+          >
             <Feather
               name="heart"
-              size={moderateScale(30)}
+              size={moderateScale(26)}
               color={Colors.black}
             />
             {wishlistCount >= 0 && (
@@ -142,11 +155,14 @@ const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
 
           <TouchableOpacity
             onPress={() => navigation.push("Cart")}
-            style={styles.cartContainer}
+            activeOpacity={0.75}
+            accessibilityRole="button"
+            accessibilityLabel="Cart"
+            style={[styles.actionButton, styles.cartContainer]}
           >
             <Feather
               name="shopping-cart"
-              size={moderateScale(30)}
+              size={moderateScale(26)}
               color={Colors.brandColor}
             />
 
@@ -166,50 +182,67 @@ export default BottomNavigationHeader;
 
 const styles = StyleSheet.create({
   main: {
-    padding: moderateScale(5),
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateVerticalScale(4),
     backgroundColor: Colors.white,
   },
   itemHolder: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    minHeight: moderateVerticalScale(50),
+    gap: moderateScale(6),
   },
   menuHolder: {
-    width: "15%",
+    width: moderateScale(44),
+    height: moderateScale(44),
+    borderRadius: moderateScale(22),
     alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
   imageViewHolder: {
-    width: "50%",
+    flex: 1,
     alignItems: "center",
-    marginBottom:moderateVerticalScale(10)
+    justifyContent: "center",
+    minWidth: 0,
   },
   imageStyle: {
     width: "100%",
-    height: moderateScale(40),
+    height: moderateVerticalScale(42),
   },
   iconHolder: {
-    width: "30%",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-evenly",
+    justifyContent: "flex-end",
+    gap: moderateScale(4),
+    flexShrink: 0,
+  },
+  actionButton: {
+    width: moderateScale(42),
+    height: moderateScale(42),
+    borderRadius: moderateScale(21),
+    alignItems: "center",
+    justifyContent: "center",
   },
   cartContainer: {
-    position: "relative", // To position the cart badge relative to the cart icon
+    position: "relative",
   },
   cartBadge: {
     backgroundColor: Colors.red,
     position: "absolute",
-    right: -10,
-    top: -5,
-    width: moderateScale(20),
-    height: moderateScale(20),
-    borderRadius: moderateScale(10),
+    right: moderateScale(1),
+    top: moderateVerticalScale(1),
+    minWidth: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
+    paddingHorizontal: moderateScale(4),
     alignItems: "center",
     justifyContent: "center",
   },
   cartBadgeText: {
     fontFamily: FontFamily.Montserrat_Regular,
     color: Colors.white,
-    fontSize: textScale(12),
+    fontSize: textScale(10),
   },
 });

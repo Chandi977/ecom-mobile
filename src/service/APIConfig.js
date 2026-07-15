@@ -1,10 +1,14 @@
-// Production points at the live API; debug builds use a reachable dev host
-// (localhost isn't reachable from a physical device, so a tunnel is used in dev).
-// Override either via an env-injected value if you wire up react-native-config.
-const PROD_BASE_URL = 'https://server.prempackaging.com/premind/api/';
-const DEV_BASE_URL = 'https://307h8lvv-5000.inc1.devtunnels.ms/premind/api/';
+import { Platform } from 'react-native';
 
-export const BASE_URL = __DEV__ ? DEV_BASE_URL : PROD_BASE_URL;
+// Development uses the local backend; release uses the dev tunnel.
+const LOCAL_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
+const LOCAL_BASE_URL = `http://${LOCAL_HOST}:5000/premind/api/`;
+const DEV_BASE_URL = 'https://307h8lvv-5000.inc1.devtunnels.ms/premind/api/';
+const PROD_BASE_URL = DEV_BASE_URL;
+
+export const BASE_URL = __DEV__ ? LOCAL_BASE_URL : PROD_BASE_URL;
+export const FALLBACK_BASE_URL = __DEV__ ? DEV_BASE_URL : LOCAL_BASE_URL;
+export const LOCAL_API_BASE_URL = LOCAL_BASE_URL;
 
 export const API_ENDPOINTS = {
   AUTH: {
@@ -12,6 +16,7 @@ export const API_ENDPOINTS = {
     LOGIN_USER: 'signin',
     GOOGLE_LOGIN: 'auth/google',
     VERIFY_SIGN_UP_USER_EMAIL: 'verify/email',
+    RE_VERIFY_EMAIL: 're/verify/email',
   },
 
   PASSWORD: {
@@ -23,6 +28,9 @@ export const API_ENDPOINTS = {
   PRODUCTS: {
     GET_ALL_PRODUCTS: 'product/all',
     GET_SINGLE_PRODUCT: 'product/get/id/',
+    GET_PRODUCT_BY_SLUG: 'product/get/', // append `${slug}`
+    GET_SINGLE_PRODUCT_WITH_IMAGE: 'product/image/single/', // append `${id}`
+    FILTER_PRODUCTS: 'product/filter',
     SEARCH_PRODUCT: 'product/search',
     HOME_PRODUCTS_SEARCH: 'product/main/search',
     NOTIFY_PRODUCT: 'notify/create',
