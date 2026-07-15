@@ -12,6 +12,8 @@ linkage = ENV['USE_FRAMEWORKS']
 if linkage != nil
   Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
   use_frameworks! :linkage => linkage.to_sym
+  # react-native-firebase ships static libs; without this it fails to link under use_frameworks!.
+  $RNFirebaseAsStaticFramework = true
 end
 
 target 'NewPremUpgradation' do

@@ -83,13 +83,15 @@ const CustomForm = () => {
       return;
     }
     const data = {
-      company_name: companyName,
-      contact_person_email: contactPersonEmail,
-      contact_person_mobile_number: contactPersonMobile,
-      contact_person_name: contactPersonName,
-      moq: moq,
-      product_category: productCategory,
-      rich_text: queryDetails,
+      name: contactPersonName.trim(),
+      email: contactPersonEmail.trim(),
+      phone: contactPersonMobile.trim(),
+      description: [
+        `Company Name: ${companyName.trim()}`,
+        `Product Category: ${productCategory.trim()}`,
+        `MOQ: ${moq.trim()}`,
+        `Query Details: ${queryDetails.trim()}`,
+      ].join('\n'),
     };
     try {
       setLoading(true);
@@ -103,6 +105,11 @@ const CustomForm = () => {
       console.log(response, 'line 101');
     } catch (error) {
       console.log(error, 'line 99');
+      showErrorMessage(
+        error?.response?.data?.message ||
+          error?.message ||
+          'Custom packaging request failed.',
+      );
     } finally {
       setCompanyName('');
       setProductCategory('');

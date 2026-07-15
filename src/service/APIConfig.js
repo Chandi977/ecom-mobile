@@ -1,10 +1,10 @@
 import { Platform } from 'react-native';
 
-// Development uses the local backend with dev tunnel fallback; release uses production only.
+// Development uses the local backend with dev tunnel fallback; release uses the dev tunnel.
 const LOCAL_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const LOCAL_BASE_URL = `http://${LOCAL_HOST}:5000/premind/api/`;
 const DEV_BASE_URL = 'https://307h8lvv-5000.inc1.devtunnels.ms/premind/api/';
-const PROD_BASE_URL = 'https://server.prempackaging.com/premind/api/';
+const PROD_BASE_URL = DEV_BASE_URL;
 
 export const BASE_URL = __DEV__ ? LOCAL_BASE_URL : PROD_BASE_URL;
 export const FALLBACK_BASE_URL = __DEV__ ? DEV_BASE_URL : '';

@@ -6,6 +6,7 @@ import {
   Alert,
   FlatList,
   Linking,
+  useWindowDimensions,
 } from "react-native";
 import React, { useEffect, useState } from "react";
 import { createDrawerNavigator } from "@react-navigation/drawer";
@@ -26,7 +27,6 @@ import {
   moderateScale,
   moderateVerticalScale,
   textScale,
-  width,
 } from "../utils/responsiveSize";
 import FontFamily from "../utils/FontFamily";
 import StorageService from "../utils/storageService";
@@ -290,7 +290,7 @@ function CustomDrawerContent(props) {
 
   const renderDrawerFooter = () => {
     return (
-      <View style={{ marginTop: moderateVerticalScale(15), paddingBottom: moderateVerticalScale(35) }}>
+      <View style={styles.drawerFooter}>
         {/* Divider Line */}
         <View style={styles.drawerDivider} />
 
@@ -306,7 +306,9 @@ function CustomDrawerContent(props) {
         >
           <View style={styles.drawerMenuItemLeft}>
             <Feather name="bell" size={textScale(16)} color={Colors.brandColor} />
-            <Text style={styles.drawerMenuText}>Notifications</Text>
+            <Text style={styles.drawerMenuText} numberOfLines={1}>
+              Notifications
+            </Text>
           </View>
           <Feather name="chevron-right" size={textScale(16)} color={Colors.brandColor} />
         </TouchableOpacity>
@@ -321,7 +323,9 @@ function CustomDrawerContent(props) {
         >
           <View style={styles.drawerMenuItemLeft}>
             <Feather name="settings" size={textScale(16)} color={Colors.brandColor} />
-            <Text style={styles.drawerMenuText}>Settings</Text>
+            <Text style={styles.drawerMenuText} numberOfLines={1}>
+              Settings
+            </Text>
           </View>
           <Feather name="chevron-right" size={textScale(16)} color={Colors.brandColor} />
         </TouchableOpacity>
@@ -336,7 +340,9 @@ function CustomDrawerContent(props) {
         >
           <View style={styles.drawerMenuItemLeft}>
             <Feather name="info" size={textScale(16)} color={Colors.brandColor} />
-            <Text style={styles.drawerMenuText}>About Us</Text>
+            <Text style={styles.drawerMenuText} numberOfLines={1}>
+              About Us
+            </Text>
           </View>
           <Feather name="chevron-right" size={textScale(16)} color={Colors.brandColor} />
         </TouchableOpacity>
@@ -351,7 +357,9 @@ function CustomDrawerContent(props) {
         >
           <View style={styles.drawerMenuItemLeft}>
             <Feather name="phone" size={textScale(16)} color={Colors.brandColor} />
-            <Text style={styles.drawerMenuText}>Contact Us</Text>
+            <Text style={styles.drawerMenuText} numberOfLines={1}>
+              Contact Us
+            </Text>
           </View>
           <Feather name="chevron-right" size={textScale(16)} color={Colors.brandColor} />
         </TouchableOpacity>
@@ -366,7 +374,9 @@ function CustomDrawerContent(props) {
         >
           <View style={styles.drawerMenuItemLeft}>
             <Feather name="alert-circle" size={textScale(16)} color={Colors.brandColor} />
-            <Text style={styles.drawerMenuText}>Report an Issue</Text>
+            <Text style={styles.drawerMenuText} numberOfLines={1}>
+              Report an Issue
+            </Text>
           </View>
           <Feather name="chevron-right" size={textScale(16)} color={Colors.brandColor} />
         </TouchableOpacity>
@@ -384,14 +394,14 @@ function CustomDrawerContent(props) {
             color={Colors.red}
             size={textScale(24)}
           />
-          <Text style={[styles.nameText, { fontSize: textScale(14), paddingVertical: 0 }]}>
+          <Text style={styles.contactText} numberOfLines={1}>
             +918447247227
           </Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.iconHolder} onPress={handleCallClicked}>
           <Feather name="phone-call" color={Colors.red} size={textScale(24)} />
-          <Text style={[styles.nameText, { fontSize: textScale(14), paddingVertical: 0 }]}>
+          <Text style={styles.contactText} numberOfLines={1}>
             +918447247227
           </Text>
         </TouchableOpacity>
@@ -401,15 +411,10 @@ function CustomDrawerContent(props) {
 
   return (
     <WrapperContainer backgroundColor={Colors.forgetPassword}>
-    <View style={{ flex: 1, backgroundColor: "white" }}>
+    <View style={styles.drawerRoot}>
       <View style={[styles.upperView]}>
         <TouchableOpacity
-          style={{
-            flexDirection: "row",
-            alignItems: "center",
-            gap: moderateScale(10),
-            padding: moderateScale(10),
-          }}
+          style={styles.profileButton}
           onPress={() => {
             closeDrawer();
             navigation.navigate("Profile");
@@ -420,8 +425,8 @@ function CustomDrawerContent(props) {
             color={Colors.red}
             size={textScale(40)}
           />
-          <View style={{ gap: moderateScale(5) }}>
-            <Text style={styles.userName}>
+          <View style={styles.userInfo}>
+            <Text style={styles.userName} numberOfLines={1}>
               {(localUser &&
                 `${localUser?.first_name} ${localUser?.last_name}`) ||
                 "Full Name"}
@@ -440,12 +445,13 @@ function CustomDrawerContent(props) {
         </TouchableOpacity>
       </View>
       {/* Show the list */}
-      <View style={{ flex: 1, padding: moderateScale(10) }}>
+      <View style={styles.drawerListWrap}>
         <FlatList
           data={data}
           renderItem={renderItem}
           keyExtractor={(item, index) => index.toString()}
           ListFooterComponent={renderDrawerFooter}
+          contentContainerStyle={styles.drawerListContent}
           showsVerticalScrollIndicator={false}
         />
       </View>
@@ -456,14 +462,16 @@ function CustomDrawerContent(props) {
 
 export default function DrawerNavigation() {
   const Drawer = createDrawerNavigator();
-  const navigation = useNavigation();
+  const { width: windowWidth } = useWindowDimensions();
+  const drawerWidth = Math.min(windowWidth * 0.86, 340);
 
   return (
     <Drawer.Navigator
       screenOptions={{
         drawerType: "front",
+        drawerPosition: "left",
         drawerStyle: {
-          width: Math.min(width * 0.86, moderateScale(340)),
+          width: drawerWidth,
         },
       }}
       drawerContent={(props) => <CustomDrawerContent {...props} />}
@@ -479,6 +487,26 @@ export default function DrawerNavigation() {
 }
 
 const styles = StyleSheet.create({
+  drawerRoot: {
+    flex: 1,
+    width: "100%",
+    alignSelf: "stretch",
+    backgroundColor: Colors.white,
+  },
+  drawerListWrap: {
+    flex: 1,
+    width: "100%",
+    padding: moderateScale(10),
+  },
+  drawerListContent: {
+    flexGrow: 1,
+    paddingBottom: moderateVerticalScale(12),
+  },
+  drawerFooter: {
+    width: "100%",
+    marginTop: moderateVerticalScale(15),
+    paddingBottom: moderateVerticalScale(35),
+  },
   upperView: {
     backgroundColor: Colors.forgetPassword,
     width: "100%",
@@ -488,6 +516,20 @@ const styles = StyleSheet.create({
     gap: moderateScale(10),
     padding: moderateScale(10),
     paddingRight: moderateScale(56),
+  },
+  profileButton: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: moderateScale(10),
+    padding: moderateScale(10),
+    paddingRight: 0,
+  },
+  userInfo: {
+    flex: 1,
+    minWidth: 0,
+    gap: moderateScale(5),
   },
   mainView: {
     flexDirection: "row",
@@ -514,6 +556,7 @@ const styles = StyleSheet.create({
     fontSize: textScale(16),
     fontWeight: "500",
     color: Colors.white,
+    flexShrink: 1,
   },
   itemHolder: {
     borderRadius: moderateScale(5),
@@ -544,7 +587,7 @@ const styles = StyleSheet.create({
   iconHolder: {
     borderWidth: 2,
     flexDirection: "row",
-    gap: textScale(20),
+    gap: moderateScale(12),
     alignItems: "center",
     marginVertical: moderateVerticalScale(5),
     padding: moderateScale(8),
@@ -577,13 +620,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.yellow_background,
   },
   drawerMenuItemLeft: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: moderateScale(10),
+    marginRight: moderateScale(8),
   },
   drawerMenuText: {
+    flex: 1,
+    minWidth: 0,
     fontSize: textScale(14),
     fontFamily: FontFamily.Montserrat_SemiBold,
     color: Colors.brandColor,
+  },
+  contactText: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: textScale(14),
+    color: Colors.brandColor,
+    fontWeight: "600",
+    paddingVertical: 0,
   },
 });
