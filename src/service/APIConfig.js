@@ -1,13 +1,13 @@
 import { Platform } from 'react-native';
 
-// Development uses the local backend; release uses the dev tunnel.
+// Development uses the local backend with dev tunnel fallback; release uses production only.
 const LOCAL_HOST = Platform.OS === 'android' ? '10.0.2.2' : 'localhost';
 const LOCAL_BASE_URL = `http://${LOCAL_HOST}:5000/premind/api/`;
 const DEV_BASE_URL = 'https://307h8lvv-5000.inc1.devtunnels.ms/premind/api/';
-const PROD_BASE_URL = DEV_BASE_URL;
+const PROD_BASE_URL = 'https://server.prempackaging.com/premind/api/';
 
 export const BASE_URL = __DEV__ ? LOCAL_BASE_URL : PROD_BASE_URL;
-export const FALLBACK_BASE_URL = __DEV__ ? DEV_BASE_URL : LOCAL_BASE_URL;
+export const FALLBACK_BASE_URL = __DEV__ ? DEV_BASE_URL : '';
 export const LOCAL_API_BASE_URL = LOCAL_BASE_URL;
 
 export const API_ENDPOINTS = {
@@ -63,6 +63,7 @@ export const API_ENDPOINTS = {
     PLACE_ORDER: 'order/create',
     GET_ALL_ORDERS: 'my/orders/',
     GET_ORDER_BY_ID: 'order/get/',
+    CREATE_RAZORPAY_ORDER: 'order/create/payment',
     UPDATE_PAYMENT_STATUS: 'order/update/payment/status',
   },
 

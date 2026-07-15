@@ -20,9 +20,7 @@ import Entypo from 'react-native-vector-icons/Entypo';
 import WrapperContainer from '../../utils/WrapperContainer';
 import CommonButton from '../CommonButton';
 import RazorpayCheckout from 'react-native-razorpay';
-import { RAZORPAY_PAYMENT_KEY, RAZORPAY_SECRET_KEY } from '../General/secrets';
-import axios from 'axios';
-import base64 from 'react-native-base64';
+import { RAZORPAY_PAYMENT_KEY } from '../General/secrets';
 import ApiService from '../../service/APIService';
 import { showMessage } from 'react-native-flash-message';
 
@@ -61,24 +59,12 @@ const OrderDetails = ({ route }) => {
     try {
       console.log('===== COMPLETE PAYMENT FLOW STARTED =====');
 
-      // STEP 1: CREATE RAZORPAY ORDER
+      // STEP 1: CREATE RAZORPAY ORDER ON BACKEND
       console.log('Creating Razorpay Order for amount:', product?.totalOrderValue);
-      const auth = base64.encode(`${RAZORPAY_PAYMENT_KEY}:${RAZORPAY_SECRET_KEY}`);
-
-      const razorpayResponse = await axios.post(
-        'https://api.razorpay.com/v1/orders',
-        {
-          amount: Math.round(Number(product?.totalOrderValue) * 100),
-          currency: 'INR',
-          receipt: `receipt_${Date.now()}`,
-        },
-        {
-          headers: {
-            Authorization: `Basic ${auth}`,
-            'Content-Type': 'application/json',
-          },
-        },
-      );
+      const razorpayResponse = await ApiService.CREATE_RAZORPAY_ORDER({
+        _id: product?._id,
+        amount: product?.totalOrderValue,
+      });
 
       console.log('RAZORPAY RESPONSE:', JSON.stringify(razorpayResponse?.data, null, 2));
       const razorpayData = razorpayResponse?.data;

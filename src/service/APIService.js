@@ -304,6 +304,10 @@ const ApiService = {
     return ApiService.post(API_ENDPOINTS.ORDERS.PLACE_ORDER, data);
   },
 
+  async CREATE_RAZORPAY_ORDER(data) {
+    return ApiService.post(API_ENDPOINTS.ORDERS.CREATE_RAZORPAY_ORDER, data);
+  },
+
   async UPDATE_PAYMENT_STATUS(data) {
     return ApiService.put(API_ENDPOINTS.ORDERS.UPDATE_PAYMENT_STATUS, data);
   },

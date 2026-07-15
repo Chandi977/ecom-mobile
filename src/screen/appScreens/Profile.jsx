@@ -1,15 +1,14 @@
-import { Alert, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import {
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import React, { useEffect, useState } from 'react';
 import Colors from '../../utils/Colors';
 import { ImagePath } from '../../utils/ImagePath';
-import {
-  UserIcon,
-  ShoppingCartIcon as CartSolid,
-  HeartIcon,
-  TruckIcon,
-} from 'react-native-heroicons/solid';
-import { ChevronRightIcon } from 'react-native-heroicons/outline';
-import LogoutIcon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useIsFocused, useNavigation } from '@react-navigation/native';
 import {
   moderateScale,
@@ -34,7 +33,6 @@ const Profile = route => {
   const [user, setUser] = useState(null);
   const isFocused = useIsFocused();
   const [cartCount, setCartCount] = useState(0);
-  console.log(user,"user")
 
   useEffect(() => {
     fetchCartCount();
@@ -48,13 +46,13 @@ const Profile = route => {
     try {
       const userStr = await StorageService.getItem('user_data');
       const userData = parseStoredUser(userStr);
-      console.log(userData, 'userData');
       if (userData?._id) {
         const response = await ApiService.GET_SPECIFIC_USER_DETAILS(
           userData._id,
         );
-        console.log(response, 'response');
         setUser(response?.data);
+      } else {
+        setUser(null);
       }
     } catch (e) {
       console.log(e);
@@ -65,7 +63,6 @@ const Profile = route => {
     try {
       const storedUser = await StorageService.getItem('user_data');
       const userData = parseStoredUser(storedUser);
-      console.log(userData, 'user');
       if (userData?._id) {
         const response = await ApiService.GET_TOTAL_CART_COUNT(userData._id);
         setCartCount(response?.data?.count || 0);
@@ -73,47 +70,6 @@ const Profile = route => {
     } catch (error) {
       console.log('Error fetching cart count:', error);
     }
-  };
-
-  const handleDeleteAccount = async () => {
-    try {
-      if (!user?._id) {
-        Alert.alert('Unable to delete', 'No user account found to delete.');
-        return;
-      }
-
-      const response = await ApiService.DELETE_USER({ id: user._id });
-
-      if (response?.data?.success) {
-        showSuccessMessage('Your account has been deleted.');
-        await StorageService.clear();
-        navigation.replace('Drawer');
-      } else {
-        Alert.alert(
-          'Unable to delete',
-          response?.data?.message ||
-            'Something went wrong while deleting your account. Please try again.',
-        );
-      }
-    } catch (error) {
-      console.log('Error deleting account:', error);
-      Alert.alert(
-        'Unable to delete',
-        'Something went wrong while deleting your account. Please try again.',
-      );
-    }
-  };
-
-  const confirmDeleteAccount = () => {
-    if (!user) return;
-    Alert.alert(
-      'Delete Account',
-      'Are you sure you want to permanently delete your account? This action cannot be undone.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: handleDeleteAccount },
-      ],
-    );
   };
 
   const handleLogout = async () => {
@@ -124,51 +80,87 @@ const Profile = route => {
     await StorageService.clear();
     navigation.replace('Drawer');
   };
+
+  const getInitials = () => {
+    const first = user?.first_name ? user.first_name.charAt(0).toUpperCase() : '';
+    const last = user?.last_name ? user.last_name.charAt(0).toUpperCase() : '';
+    return `${first}${last}` || 'G';
+  };
+
+  const renderMenuItem = (
+    icon,
+    title,
+    subtitle,
+    onPress,
+    disabled = false,
+  ) => {
+    return (
+      <TouchableOpacity
+        style={[styles.itemRow, disabled && styles.disabledItem]}
+        onPress={onPress}
+        disabled={disabled}
+      >
+        <View style={styles.iconWrapper}>
+          <Feather
+            name={icon}
+            size={textScale(20)}
+            color={Colors.brandColor}
+          />
+        </View>
+        <View style={styles.textWrapper}>
+          <Text style={styles.itemTitle}>{title}</Text>
+          {subtitle ? (
+            <Text style={styles.itemSubtitle}>{subtitle}</Text>
+          ) : null}
+        </View>
+        <Feather
+          name="chevron-right"
+          size={textScale(18)}
+          color={Colors.text_grey}
+        />
+      </TouchableOpacity>
+    );
+  };
+
   return (
     <WrapperContainer isLoading={false}>
-      <View style={styles.main}>
-        <View style={styles.itemHolder}>
-          {/* Menu Icon */}
+      <View style={styles.container}>
+        {/* Header */}
+        <View style={styles.header}>
           <TouchableOpacity
-            style={styles.menuHolder}
+            style={styles.backButton}
             onPress={() => navigation.goBack()}
           >
             <Ionicons
               name="arrow-back"
               color={Colors.black}
-              size={textScale(25)}
+              size={textScale(24)}
             />
           </TouchableOpacity>
-
-          {/* Header Logo */}
-          <View style={styles.imageViewHolder}>
+          <View style={styles.logoContainer}>
             <Image
-              style={styles.imageStyle}
               source={ImagePath.headerImage}
-              resizeMode={'contain'}
+              style={styles.logo}
+              resizeMode="contain"
             />
           </View>
-
-          {/* Favorite and Cart Icons */}
-          <View style={styles.iconHolder}>
+          <View style={styles.headerIcons}>
             <TouchableOpacity onPress={() => navigation.navigate('Favorite')}>
               <Feather
                 name="heart"
-                size={moderateScale(30)}
+                size={moderateScale(24)}
                 color={Colors.black}
               />
             </TouchableOpacity>
-
             <TouchableOpacity
               onPress={() => navigation.push('Cart')}
               style={styles.cartContainer}
             >
               <Feather
                 name="shopping-cart"
-                size={moderateScale(30)}
+                size={moderateScale(24)}
                 color={Colors.brandColor}
               />
-
               {cartCount >= 0 && (
                 <View style={styles.cartBadge}>
                   <Text style={styles.cartBadgeText}>{cartCount}</Text>
@@ -177,104 +169,134 @@ const Profile = route => {
             </TouchableOpacity>
           </View>
         </View>
-        {/* Name and image and their details sections */}
-        <View style={[user ? styles.personDetails : styles.overlay]}>
-          <View style={[styles.userImageContainer]}>
-            {/* <Image
-            source={ImagePath.defaultUserImage}
-            style={styles.userImage}
-            resizeMode="cover"
-          /> */}
+
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.screenTitle}>My Account</Text>
+
+          {/* User summary card */}
+          <View style={styles.userCard}>
             <View style={styles.initialsContainer}>
-              <Text style={styles.initialsText}>
-                {user?.first_name
-                  ? user?.first_name?.charAt(0).toUpperCase()
-                  : 'N'}
-                {user?.last_name
-                  ? user?.last_name?.charAt(0).toUpperCase()
-                  : 'A'}
+              <Text style={styles.initialsText}>{getInitials()}</Text>
+            </View>
+            <View style={styles.nameHolder}>
+              <Text style={styles.userName} numberOfLines={1}>
+                {user ? `${user.first_name} ${user.last_name}` : 'Guest User'}
               </Text>
+              <Text style={styles.userEmail} numberOfLines={1}>
+                {user
+                  ? user.email_address
+                  : 'Sign in to manage your account'}
+              </Text>
+              {user?.isVerified ? (
+                <View style={styles.verifiedChip}>
+                  <Feather
+                    name="check-circle"
+                    size={textScale(11)}
+                    color={Colors.green}
+                  />
+                  <Text style={styles.verifiedChipText}>Verified</Text>
+                </View>
+              ) : null}
             </View>
           </View>
-          <View style={styles.nameHolder}>
-            <Text style={styles.userName}>
-              {(user && `${user.first_name} ${user.last_name}`) || 'Full Name'}
-            </Text>
-            <Text style={styles.userEmail}>
-              {(user && `${user?.email_address}`) || 'email@email.com'}
-            </Text>
+
+          {!user && (
+            <TouchableOpacity
+              style={styles.loginBanner}
+              onPress={() => navigation.navigate('Login')}
+            >
+              <Feather
+                name="log-in"
+                size={textScale(18)}
+                color={Colors.white}
+              />
+              <Text style={styles.loginBannerText}>
+                Log in / Sign up to get started
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {/* Section: My Activity */}
+          <Text style={styles.sectionHeader}>My Activity</Text>
+          <View style={styles.sectionCard}>
+            {renderMenuItem(
+              'package',
+              'My Orders',
+              'Track, manage and reorder purchases',
+              () => navigation.navigate('My Order', { user: user }),
+              !user,
+            )}
+            <View style={styles.separator} />
+            {renderMenuItem(
+              'heart',
+              'Wishlist',
+              'Products you have saved for later',
+              () => navigation.push('WishList2'),
+              !user,
+            )}
           </View>
-        </View>
-        {/* Account Related Information */}
-        <View style={styles.lowerView}>
-          {/* My Order*/}
+
+          {/* Section: Account */}
+          <Text style={styles.sectionHeader}>Account</Text>
+          <View style={styles.sectionCard}>
+            {renderMenuItem(
+              'user',
+              'Personal Details',
+              'Manage your profile information',
+              () => navigation.navigate('PersonalDetails', { user }),
+              !user,
+            )}
+            <View style={styles.separator} />
+            {renderMenuItem(
+              'map-pin',
+              'Shipping Address',
+              'Manage your delivery addresses',
+              () =>
+                navigation.navigate('Shipping Address', {
+                  routeName: 'Profile Address',
+                  user,
+                }),
+              !user,
+            )}
+            <View style={styles.separator} />
+            {renderMenuItem(
+              'shield',
+              'Account Privacy',
+              'Notifications, recommendations and analytics',
+              () => navigation.navigate('AccountPrivacy'),
+              !user,
+            )}
+            <View style={styles.separator} />
+            {renderMenuItem(
+              'settings',
+              'Settings',
+              'App preferences, policies and support',
+              () => navigation.navigate('Settings'),
+            )}
+          </View>
+
+          {/* Logout / Login */}
           <TouchableOpacity
-            style={[styles.listItemHolder, { opacity: user ? 1 : 0.3 }]}
-            disabled={!user}
-            onPress={() => navigation.navigate('My Order', { user: user })}
+            style={styles.logoutCard}
+            onPress={() => (user ? handleLogout() : navigation.navigate('Login'))}
           >
-            <View style={styles.iconContainer}>
-              <CartSolid size={textScale(25)} color={Colors.black} />
+            <View style={[styles.iconWrapper, styles.logoutIconWrapper]}>
+              <Feather
+                name={user ? 'log-out' : 'log-in'}
+                size={textScale(20)}
+                color={Colors.red}
+              />
             </View>
-            <View style={styles.textHolder}>
-              <Text style={styles.listNameText}>My Orders</Text>
-            </View>
-            <View
-              style={[styles.iconContainer, { backgroundColor: Colors.white }]}
-            >
-              <ChevronRightIcon size={textScale(20)} color={Colors.black} />
-            </View>
-          </TouchableOpacity>
-          {/* WishList Sections */}
-          <TouchableOpacity
-            style={[styles.listItemHolder, { opacity: user ? 1 : 0.3 }]}
-            disabled={!user}
-            onPress={() => navigation.push('WishList2')}
-          >
-            <View style={styles.iconContainer}>
-              <HeartIcon size={textScale(25)} color={Colors.black} />
-            </View>
-            <View style={styles.textHolder}>
-              <Text style={styles.listNameText}>Wishlist</Text>
-            </View>
-            <View
-              style={[styles.iconContainer, { backgroundColor: Colors.white }]}
-            >
-              <ChevronRightIcon size={textScale(20)} color={Colors.black} />
-            </View>
-          </TouchableOpacity>
-          {/* Settings */}
-          <TouchableOpacity
-            style={styles.listItemHolder}
-            onPress={() => navigation.navigate('Settings')}
-          >
-            <View style={styles.iconContainer}>
-              <Feather name="settings" size={textScale(25)} color={Colors.black} />
-            </View>
-            <View style={styles.textHolder}>
-              <Text style={styles.listNameText}>Settings</Text>
-            </View>
-            <View
-              style={[styles.iconContainer, { backgroundColor: Colors.white }]}
-            >
-              <ChevronRightIcon size={textScale(20)} color={Colors.black} />
-            </View>
-          </TouchableOpacity>
-        </View>
-        {/* Logout Button Sections */}
-        <View style={styles.logoutButtonView}>
-          <TouchableOpacity
-            onPress={() => 
-              user ? handleLogout() : navigation.navigate('Login')
-            }
-            style={styles.logoutHolder}
-          >
-            <LogoutIcon name="logout" color={Colors.red} size={textScale(30)} />
-            <Text style={styles.listNameText}>
-              {user ? 'Logout' : 'Log In /Sign Up'}
+            <Text style={styles.logoutText}>
+              {user ? 'Logout' : 'Log In / Sign Up'}
             </Text>
           </TouchableOpacity>
-        </View>
+
+          <View style={styles.footerSpacing} />
+        </ScrollView>
       </View>
     </WrapperContainer>
   );
@@ -283,193 +305,225 @@ const Profile = route => {
 export default Profile;
 
 const styles = StyleSheet.create({
-  main: {
+  container: {
     flex: 1,
-    backgroundColor: Colors.white,
-  },
-  personDetails: {
-    width: '90%',
-    backgroundColor: 'white',
-    elevation: moderateScale(10),
-    marginTop: moderateVerticalScale(15),
-    padding: moderateScale(10),
-    borderRadius: moderateScale(10),
-    alignSelf: 'center',
-    flexDirection: 'row',
-    gap: moderateVerticalScale(10),
-    borderWidth: moderateScale(0.3),
-    borderColor: Colors.border_color,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: moderateScale(2) },
-    shadowOpacity: 0.25,
-    shadowRadius: moderateScale(3.84),
-  },
-  userImageContainer: {
-    height: moderateScale(70),
-    width: moderateScale(70),
-    alignItems: 'center',
-  },
-  userImage: {
-    height: moderateScale(70),
-    width: moderateScale(70),
-    borderRadius: moderateScale(5),
-    alignSelf: 'center',
-  },
-  userName: {
-    color: Colors.black,
-    fontSize: textScale(15),
-    fontFamily: FontFamily.Montserrat_Bold,
-  },
-  userEmail: {
-    color: 'gray',
-    marginTop: moderateVerticalScale(5),
-    fontFamily: FontFamily.Montserrat_Regular,
-    fontSize: textScale(13),
-  },
-  nameHolder: {
-    gap: moderateScale(3),
-    justifyContent: 'center',
-  },
-  lowerView: {
-    width: '90%',
-    alignSelf: 'center',
-    marginTop: '5%',
-    padding: moderateScale(10),
-    backgroundColor: Colors.white,
-    borderRadius: moderateScale(10),
-    elevation: moderateScale(10),
-    gap: moderateScale(10),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: moderateScale(2) },
-    shadowOpacity: 0.25,
-    shadowRadius: moderateScale(3.84),
-  },
-  listItemHolder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: moderateScale(10),
-  },
-  iconContainer: {
-    width: '15%',
     backgroundColor: Colors.backGround_grey,
-    padding: moderateScale(10),
-    borderRadius: moderateScale(10),
-    alignItems: 'center',
   },
-  textHolder: {
-    width: '65%',
-  },
-  listNameText: {
-    fontSize: textScale(16),
-    color: Colors.brandColor,
-    padding: moderateScale(10),
-    fontFamily: FontFamily.Montserrat_SemiBold,
-  },
-  deleteAccountHolder: {
-    width: '90%',
-    alignSelf: 'center',
-    marginTop: moderateVerticalScale(10),
+  header: {
+    height: moderateVerticalScale(55),
+    backgroundColor: Colors.white,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: moderateScale(10),
-    padding: moderateScale(10),
+    justifyContent: 'space-between',
+    paddingHorizontal: moderateScale(15),
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border_grey,
+  },
+  backButton: {
+    width: moderateScale(40),
+    height: moderateScale(40),
+    justifyContent: 'center',
+    alignItems: 'flex-start',
+  },
+  logoContainer: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  logo: {
+    width: moderateScale(140),
+    height: moderateVerticalScale(35),
+  },
+  headerIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(16),
+  },
+  cartContainer: {
+    position: 'relative',
+  },
+  cartBadge: {
+    backgroundColor: Colors.red,
+    position: 'absolute',
+    right: -8,
+    top: -6,
+    minWidth: moderateScale(18),
+    height: moderateScale(18),
+    borderRadius: moderateScale(9),
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: moderateScale(3),
+  },
+  cartBadgeText: {
+    fontFamily: FontFamily.Montserrat_SemiBold,
+    color: Colors.white,
+    fontSize: textScale(10),
+  },
+  scrollContent: {
+    paddingHorizontal: moderateScale(15),
+    paddingTop: moderateVerticalScale(10),
+  },
+  screenTitle: {
+    fontSize: textScale(24),
+    fontFamily: FontFamily.Montserrat_Bold,
+    color: Colors.brandColor,
+    marginBottom: moderateVerticalScale(15),
+  },
+  userCard: {
     backgroundColor: Colors.white,
     borderRadius: moderateScale(10),
-    borderWidth: 0.3,
-    borderColor: Colors.border_color,
-    elevation: moderateScale(6),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: moderateScale(2) },
-    shadowOpacity: 0.12,
-    shadowRadius: moderateScale(3.84),
-  },
-  logoutButtonView: {
-    backgroundColor: 'white',
-    alignSelf: 'center',
-    width: '90%',
-    marginTop: moderateVerticalScale(20),
-    borderWidth: 0.3,
-    elevation: moderateScale(10),
-    borderColor: Colors.border_color,
-    borderRadius: moderateScale(5),
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: moderateScale(2) },
-    shadowOpacity: 0.25,
-    shadowRadius: moderateScale(3.84),
-  },
-  logoutHolder: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: moderateScale(10),
-    padding: moderateScale(10),
-  },
-  overlay: {
-    width: '90%',
-    backgroundColor: 'rgba(255,255,255,0.8)',
-    marginTop: moderateVerticalScale(15),
-    padding: moderateScale(10),
-    borderRadius: moderateScale(10),
-    alignSelf: 'center',
-    flexDirection: 'row',
-    gap: moderateScale(10),
-    borderWidth: 0.3,
-    borderColor: Colors.border_color,
+    padding: moderateScale(15),
+    gap: moderateScale(14),
+    elevation: 3,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   initialsContainer: {
-    width: moderateScale(70),
-    height: moderateScale(70),
-    borderRadius: moderateScale(75),
+    width: moderateScale(60),
+    height: moderateScale(60),
+    borderRadius: moderateScale(30),
     backgroundColor: Colors.brandColor,
     justifyContent: 'center',
     alignItems: 'center',
-    alignSelf: 'center',
-    // marginVertical: moderateScale(20),
   },
   initialsText: {
     fontSize: textScale(20),
     color: Colors.white,
     fontFamily: FontFamily.Montserrat_Bold,
   },
-  itemHolder: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  menuHolder: {
-    width: '15%',
-    alignItems: 'center',
-  },
-  imageViewHolder: {
-    width: '50%',
-    alignItems: 'center',
-  },
-  imageStyle: {
-    width: '100%',
-    height: moderateScale(45),
-  },
-  iconHolder: {
-    width: '30%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-evenly',
-  },
-  cartContainer: {
-    position: 'relative', // To position the cart badge relative to the cart icon
-  },
-  cartBadge: {
-    backgroundColor: Colors.red,
-    position: 'absolute',
-    right: -10,
-    top: -5,
-    width: moderateScale(20),
-    height: moderateScale(20),
-    borderRadius: moderateScale(10),
-    alignItems: 'center',
+  nameHolder: {
+    flex: 1,
+    gap: moderateVerticalScale(2),
     justifyContent: 'center',
   },
-  cartBadgeText: {
+  userName: {
+    color: Colors.brandColor,
+    fontSize: textScale(17),
+    fontFamily: FontFamily.Montserrat_Bold,
+    textTransform: 'capitalize',
+  },
+  userEmail: {
+    color: Colors.text_grey,
     fontFamily: FontFamily.Montserrat_Regular,
+    fontSize: textScale(13),
+  },
+  verifiedChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: moderateScale(4),
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: moderateScale(99),
+    paddingHorizontal: moderateScale(8),
+    paddingVertical: moderateVerticalScale(2),
+    marginTop: moderateVerticalScale(4),
+  },
+  verifiedChipText: {
+    fontSize: textScale(10),
+    fontFamily: FontFamily.Montserrat_SemiBold,
+    color: Colors.green,
+  },
+  loginBanner: {
+    backgroundColor: Colors.forgetPassword,
+    borderRadius: moderateScale(8),
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: moderateVerticalScale(10),
+    marginTop: moderateVerticalScale(10),
+    gap: moderateScale(10),
+  },
+  loginBannerText: {
+    fontSize: textScale(13),
+    fontFamily: FontFamily.Montserrat_Medium,
     color: Colors.white,
-    fontSize: textScale(12),
+  },
+  sectionHeader: {
+    fontSize: textScale(14),
+    fontFamily: FontFamily.Montserrat_SemiBold,
+    color: Colors.text_grey,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: moderateVerticalScale(8),
+    marginTop: moderateVerticalScale(15),
+    paddingLeft: moderateScale(5),
+  },
+  sectionCard: {
+    backgroundColor: Colors.white,
+    borderRadius: moderateScale(10),
+    paddingVertical: moderateVerticalScale(5),
+    elevation: 3,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: moderateVerticalScale(12),
+    paddingHorizontal: moderateScale(15),
+  },
+  disabledItem: {
+    opacity: 0.4,
+  },
+  iconWrapper: {
+    width: moderateScale(35),
+    height: moderateScale(35),
+    borderRadius: moderateScale(8),
+    backgroundColor: Colors.yellow_background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: moderateScale(15),
+  },
+  textWrapper: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  itemTitle: {
+    fontSize: textScale(15),
+    fontFamily: FontFamily.Montserrat_SemiBold,
+    color: Colors.brandColor,
+  },
+  itemSubtitle: {
+    fontSize: textScale(11),
+    fontFamily: FontFamily.Montserrat_Regular,
+    color: Colors.text_grey,
+    marginTop: moderateVerticalScale(2),
+  },
+  separator: {
+    height: 1,
+    backgroundColor: Colors.border_grey,
+    marginLeft: moderateScale(65),
+  },
+  logoutCard: {
+    backgroundColor: Colors.white,
+    borderRadius: moderateScale(10),
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: moderateVerticalScale(12),
+    paddingHorizontal: moderateScale(15),
+    marginTop: moderateVerticalScale(20),
+    elevation: 3,
+    shadowColor: Colors.black,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+  },
+  logoutIconWrapper: {
+    backgroundColor: '#FEF2F2',
+  },
+  logoutText: {
+    fontSize: textScale(15),
+    fontFamily: FontFamily.Montserrat_SemiBold,
+    color: Colors.red,
+  },
+  footerSpacing: {
+    height: moderateVerticalScale(40),
   },
 });

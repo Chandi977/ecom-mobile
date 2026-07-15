@@ -14,7 +14,7 @@ import Colors from '../utils/Colors';
 import SuccessPopup from './General/SuccessPopup';
 import ApiService from '../service/APIService';
 import RazorpayCheckout from 'react-native-razorpay';
-import { RAZORPAY_PAYMENT_KEY, RAZORPAY_SECRET_KEY } from './General/secrets';
+import { RAZORPAY_PAYMENT_KEY } from './General/secrets';
 import {
   moderateScale,
   moderateVerticalScale,
@@ -30,10 +30,8 @@ import { showMessage } from 'react-native-flash-message';
 import WrapperContainer from '../utils/WrapperContainer';
 import InternalHeader from './Header/InternalHeader';
 import CommonButton from './CommonButton';
-import base64 from 'react-native-base64';
 import { showErrorMessage } from '../utils/HelperFunction';
 import WebView from 'react-native-webview';
-import axios from 'axios';
 
 const SelectAddress = ({ route }) => {
   const navigation = useNavigation();
@@ -409,300 +407,6 @@ const SelectAddress = ({ route }) => {
     setFinalPrice(newFinalPrice);
   }, [shippingAmount, discountedAmount, totalOrderValue, shippingGST]);
 
-  // const CREATE_RAZORPAY_ORDER = async amount => {
-  //   try {
-  //     console.log('Creating Razorpay order with amount:', amount);
-
-  //     const auth = base64.encode(
-  //       `${RAZORPAY_PAYMENT_KEY}:${RAZORPAY_SECRET_KEY}`,
-  //     );
-
-  //     console.log('Auth encoded successfully');
-
-  //     const response = await fetch('https://api.razorpay.com/v1/orders', {
-  //       method: 'POST',
-  //       headers: {
-  //         Authorization: `Basic ${auth}`,
-  //         'Content-Type': 'application/json',
-  //       },
-  //       body: JSON.stringify({
-  //         amount: Math.round(Number(amount) * 100),
-  //         currency: 'INR',
-  //         receipt: `receipt_${Date.now()}`,
-  //       }),
-  //     });
-
-  //     console.log('Razorpay API Response Status:', response.status);
-
-  //     const data = await response.json();
-
-  //     console.log('Razorpay Order Response:', JSON.stringify(data, null, 2));
-
-  //     if (data?.id) {
-  //       console.log('Order created successfully with ID:', data.id);
-  //       return data;
-  //     } else if (data?.error) {
-  //       console.log('Razorpay API Error:', data.error);
-  //       throw new Error(data.error?.description || 'Failed to create order');
-  //     } else {
-  //       console.log('Unexpected response structure:', data);
-  //       return data;
-  //     }
-  //   } catch (error) {
-  //     console.log('CREATE RAZORPAY ORDER ERROR:', error);
-  //     console.log('Error Details:', error.message);
-  //     return null;
-  //   }
-  // };
-
-  // const OrderPlace = async () => {
-  //   const items = cartProducts.map(x => {
-  //     return {
-  //       product: x?.product?._id,
-  //       quantity: x?.quantity,
-  //       price: x?.price,
-  //       packSize: x?.packSize,
-  //     };
-  //   });
-
-  //   let data = {
-  //     items: items,
-  //     name: contact_address?.name,
-  //     gstin: contact_address?.gstin,
-  //     address: contact_address?.address,
-  //     pincode: contact_address?.pincode,
-  //     landmark: contact_address?.landmark,
-  //     town: contact_address?.town,
-  //     email: contact_address?.email,
-  //     phone: contact_address?.mobile,
-  //     state: contact_address?.state,
-  //     user: user?._id,
-  //     totalOrderValue: finalPrice,
-  //     totalCartValue: totalOrderValue,
-  //     shippingCost: shippingAmount ? shippingAmount : 0,
-  //     taxableAmount: totalGST.toFixed(2),
-  //     paymentStatus: 'Not Paid',
-  //     utrNumber: '0',
-  //     couponCode: couponCode,
-  //   };
-  //   setLoading(true);
-  //   try {
-  //     console.log('Calling PLACE_ORDER API...');
-  //     const response = await ApiService.PLACE_ORDER(data);
-  //     console.log(
-  //       'Place Order API Response:',
-  //       JSON.stringify(response, null, 2),
-  //     );
-  //     if (response?.success) {
-  //       const dbOrderId = response?.data?.orderId;
-  //       const dbOrderId2 = response?.data?._id;
-  //       const totalOrderValue = response?.data?.totalOrderValue;
-
-  //       console.log('Order placed successfully in DB');
-  //       console.log('DB Order ID:', dbOrderId);
-  //       console.log('DB Order ObjectId:', dbOrderId2);
-  //       console.log('Total Order Value for Razorpay:', totalOrderValue);
-  //       console.log('Creating Razorpay order...');
-
-  //       const razorpayOrder = await CREATE_RAZORPAY_ORDER(totalOrderValue);
-  //       try {
-  //         console.log('Creating Razorpay order with amount:', amount);
-  //         const auth = base64.encode(
-  //           `${RAZORPAY_PAYMENT_KEY}:${RAZORPAY_SECRET_KEY}`,
-  //         );
-  //         console.log('Auth encoded successfully');
-  //         const response = await fetch('https://api.razorpay.com/v1/orders', {
-  //           method: 'POST',
-  //           headers: {
-  //             Authorization: `Basic ${auth}`,
-  //             'Content-Type': 'application/json',
-  //           },
-  //           body: JSON.stringify({
-  //             amount: Math.round(Number(amount) * 100),
-  //             currency: 'INR',
-  //             receipt: `receipt_${Date.now()}`,
-  //           }),
-  //         });
-
-  //         console.log('Razorpay API Response Status:', response.status);
-
-  //         const data = await response.json();
-
-  //         console.log(
-  //           'Razorpay Order Response:',
-  //           JSON.stringify(data, null, 2),
-  //         );
-
-  //         if (data?.id) {
-  //           console.log('Order created successfully with ID:', data.id);
-  //           return data;
-  //         } else if (data?.error) {
-  //           console.log('Razorpay API Error:', data.error);
-  //           throw new Error(
-  //             data.error?.description || 'Failed to create order',
-  //           );
-  //         } else {
-  //           console.log('Unexpected response structure:', data);
-  //           return data;
-  //         }
-  //       } catch (error) {
-  //         console.log('CREATE RAZORPAY ORDER ERROR:', error);
-  //         console.log('Error Details:', error.message);
-  //         return null;
-  //       }
-
-  //       // console.log('Razorpay Order Result:', JSON.stringify(razorpayOrder, null, 2));
-
-  //       if (razorpayOrder?.id) {
-  //         console.log(
-  //           'Razorpay order created successfully. Opening payment gateway...',
-  //         );
-  //         OPEN_PAYMENT_GATEWAY(razorpayOrder?.id, dbOrderId, dbOrderId2);
-  //       } else {
-  //         console.log('Razorpay order creation failed or returned empty');
-  //         showMessage({
-  //           type: 'danger',
-  //           icon: 'danger',
-  //           message: 'Failed to create Razorpay Order',
-  //         });
-  //       }
-  //     } else {
-  //       console.log('PLACE_ORDER API returned success: false');
-  //       showMessage({
-  //         type: 'danger',
-  //         icon: 'danger',
-  //         message: response?.message || 'Failed to place order',
-  //       });
-  //     }
-  //   } catch (e) {
-  //     console.log('ORDER PLACE ERROR:', e);
-  //     console.log('Error Message:', e.message);
-  //     showMessage({
-  //       type: 'danger',
-  //       icon: 'danger',
-  //       message: 'Failed to place order. Please try again.',
-  //     });
-  //   } finally {
-  //     setLoading(false);
-  //     console.log('===== ORDER PLACE COMPLETED =====');
-  //   }
-  // };
-
-  //   ID: shikhartripathi08@gmail.com
-  // Password: PremPackaging@123
-
-  // 4017 0424 7600 5520
-  // const OPEN_PAYMENT_GATEWAY = (razorpayOrderId, dbOrderId, dbOrderId2) => {
-  //   console.log('OPEN_PAYMENT_GATEWAY called on platform:', Platform.OS);
-
-  //   const options = {
-  //     description: 'Make Payment for Cart Products',
-  //     currency: 'INR',
-  //     key: RAZORPAY_PAYMENT_KEY,
-  //     order_id: razorpayOrderId,
-  //     name: 'Prem Industries',
-  //     prefill: {
-  //       email: user?.email_address || '',
-  //       contact: user?.mobile_number || '',
-  //       name: `${user?.first_name || ''} ${user?.last_name || ''}`,
-  //     },
-  //     theme: {
-  //       color: Colors.brandColor,
-  //     },
-  //   };
-
-  //   console.log(
-  //     'Options being sent to Razorpay:',
-  //     JSON.stringify(options, null, 2),
-  //   );
-  //   console.log('Razorpay Order ID:', razorpayOrderId);
-  //   console.log('Final Price:', finalPrice);
-  //   console.log('Attempting to open Razorpay checkout...');
-
-  //   try {
-  //     console.log('Calling RazorpayCheckout.open()...');
-  //     const paymentPromise = RazorpayCheckout.open(options);
-  //     console.log('RazorpayCheckout.open() returned, waiting for result...');
-
-  //     let timeoutId = null;
-  //     let isSettled = false;
-
-  //     // On iOS, if native module doesn't respond in 10 seconds, use web checkout as fallback
-  //     const timeoutPromise = new Promise((_, reject) => {
-  //       timeoutId = setTimeout(() => {
-  //         if (!isSettled) {
-  //           isSettled = true;
-  //           console.log(
-  //             'Native Razorpay module not responding on iOS, using web checkout fallback...',
-  //           );
-  //           reject(new Error('Switching to web checkout'));
-  //         }
-  //       }, 10000);
-  //     });
-
-  //     Promise.race([paymentPromise, timeoutPromise])
-  //       .then(data => {
-  //         isSettled = true;
-  //         clearTimeout(timeoutId);
-  //         console.log('Payment Success - Data:', JSON.stringify(data, null, 2));
-
-  //         if (data?.razorpay_payment_id) {
-  //           console.log('Payment ID received:', data.razorpay_payment_id);
-  //           navigation.navigate('SuccessPage', {
-  //             id: user?._id,
-  //             orderId: dbOrderId,
-  //             paymentId: data?.razorpay_payment_id,
-  //           });
-  //         } else {
-  //           console.log('No payment ID in response');
-  //           navigation.navigate('PaymentFailedScreen', {
-  //             orderId: dbOrderId,
-  //             errorMessage: 'Payment response incomplete. Please try again.',
-  //           });
-  //         }
-  //       })
-  //       .catch(error => {
-  //         if (!isSettled) {
-  //           isSettled = true;
-  //           clearTimeout(timeoutId);
-  //         }
-
-  //         // If native checkout timed out, use web checkout
-  //         if (error?.message === 'Switching to web checkout') {
-  //           console.log('Opening web checkout for iOS...');
-  //           openWebCheckout(razorpayOrderId, dbOrderId);
-  //           return;
-  //         }
-
-  //         console.log('Payment Error - Full Error:', error);
-  //         console.log('Error Code:', error?.code);
-  //         console.log('Error Description:', error?.description);
-  //         console.log('Error Message:', error?.message);
-
-  //         if (error?.code === 0) {
-  //           console.log('User cancelled payment');
-  //           return;
-  //         }
-
-  //         const errorMessage =
-  //           error?.description ||
-  //           error?.message ||
-  //           error?.toString() ||
-  //           'Payment failed. Please try again.';
-
-  //         navigation.navigate('PaymentFailedScreen', {
-  //           orderId: dbOrderId,
-  //           errorMessage: errorMessage,
-  //         });
-  //       });
-  //   } catch (error) {
-  //     console.log('Exception thrown while opening Razorpay:', error);
-  //     console.log('Exception Message:', error?.message);
-  //     // Fallback to web checkout on exception
-  //     openWebCheckout(razorpayOrderId, dbOrderId);
-  //   }
-  // };
-
   const handleWebCheckoutMessage = event => {
     try {
       const data = JSON.parse(event.nativeEvent.data);
@@ -915,27 +619,12 @@ const OrderPlace = async () => {
     console.log('DB ORDER OBJECT ID:', dbOrderObjectId);
     console.log('TOTAL AMOUNT:', totalAmount);
 
-    // STEP 5: CREATE RAZORPAY ORDER USING AXIOS
-    console.log('Creating Razorpay Order...');
-
-    const auth = base64.encode(
-      `${RAZORPAY_PAYMENT_KEY}:${RAZORPAY_SECRET_KEY}`,
-    );
-
-    const razorpayResponse = await axios.post(
-      'https://api.razorpay.com/v1/orders',
-      {
-        amount: Math.round(Number(totalAmount) * 100),
-        currency: 'INR',
-        receipt: `receipt_${Date.now()}`,
-      },
-      {
-        headers: {
-          Authorization: `Basic ${auth}`,
-          'Content-Type': 'application/json',
-        },
-      },
-    );
+    // STEP 5: CREATE RAZORPAY ORDER ON BACKEND
+    console.log('Creating Razorpay Order on backend...');
+    const razorpayResponse = await ApiService.CREATE_RAZORPAY_ORDER({
+      _id: dbOrderObjectId,
+      amount: totalAmount,
+    });
 
     console.log(
       'RAZORPAY RESPONSE:',
