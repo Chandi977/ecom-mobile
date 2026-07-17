@@ -1,0 +1,70 @@
+[
+  {
+    "id": 1,
+    "name": "Corrugated Box",
+    "category_id": "6926d7c0d53f3a772c6f08af"
+  },
+  {
+    "id": 2,
+    "name": "Paper Bag",
+    "category_id": "6557df46301ec4f2f4266139"
+  },
+  {
+    "id": 3,
+    "name": "Poly Bag",
+    "category_id": "6557df4f301ec4f2f426613d"
+  },
+  {
+    "id": 4,
+    "name": "OUR BRANDS",
+    "subMenu": [
+      {
+        "id": 1,
+        "name": "PACKPRO",
+        "tm": "TM",
+        "subMenu": [
+          {
+            "id": 1,
+            "name": "CARRY BAGS",
+            "category_id": "6557df71301ec4f2f4266145",
+            "filterType": "category"
+          },
+          {
+            "id": 2,
+            "name": "FOOD WRAPPING PAPER",
+            "category_id": "69dcb22e733b8ba056529a9f",
+            "filterType": "category"
+          },
+          {
+            "id": 3,
+            "name": "TAPES",
+            "filterType": "allTapes"
+          }
+        ]
+      },
+      {
+        "id": 2,
+        "name": "ROLLABEL",
+        "tm": "TM",
+        "category_id": "6557df71301ec4f2f4266145",
+        "subMenu": [
+          {
+            "id": 1,
+            "name": "DIRECT THERMAL LABEL",
+            "category_id": "6557e1cb301ec4f2f426614c"
+          },
+          {
+            "id": 2,
+            "name": "CHROMO LABEL",
+            "category_id": "6557e236301ec4f2f4266154"
+          },
+          {
+            "id": 3,
+            "name": "ALL PRODUCTS",
+            "category_id": "6557df64301ec4f2f4266141"
+          }
+        ]
+      }
+    ]
+  }
+]

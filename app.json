@@ -1,40 +1,4 @@
 {
-  "expo": {
-    "name": "Prem Packaging",
-    "slug": "ecom-mobile",
-    "version": "1.0.0",
-    "scheme": "prempackaging",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/prem-logo.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
-    },
-    "ios": {
-      "supportsTablet": true
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.ecommobile"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
-    },
-    "plugins": [
-      "expo-secure-store",
-      "expo-font",
-      "expo-web-browser"
-    ],
-    "extra": {
-      "apiBaseUrl": "http://10.0.2.2:5000/premind/api"
-    }
-  }
+  "name": "NewPremUpgradation",
+  "displayName": "NewPremUpgradation"
 }
