@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     marginVertical: moderateVerticalScale(5),
   },
   brandContentContainer: {
-    paddingHorizontal: moderateScale(10),
+    paddingHorizontal: moderateScale(16),
     paddingVertical: moderateVerticalScale(8),
     alignItems: 'center',
     justifyContent: 'center',
@@ -452,6 +452,7 @@ const styles = StyleSheet.create({
   },
   horizontalListWrapper: {
     width: '100%',
+    overflow: 'visible',
   },
   item: {
     padding: moderateScale(10),

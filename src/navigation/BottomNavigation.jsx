@@ -1,6 +1,7 @@
 import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Home from "../screen/appScreens/Home";
 import Cart from "../screen/appScreens/Cart";
 import Profile from "../screen/appScreens/Profile";
@@ -32,6 +33,9 @@ const TabBarButton = props => (
 );
 
 const BottomNavigation = () => {
+  const insets = useSafeAreaInsets();
+  const bottomInset = Math.max(insets.bottom, moderateVerticalScale(8));
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -44,7 +48,16 @@ const BottomNavigation = () => {
         tabBarInactiveTintColor: Colors.text_grey,
         tabBarLabelStyle: styles.tabBarLabel,
         tabBarItemStyle: styles.tabBarItem,
-        tabBarStyle: styles.tabBar,
+        tabBarStyle: [
+          styles.tabBar,
+          {
+            height:
+              Platform.OS === "android"
+                ? moderateVerticalScale(64) + bottomInset
+                : moderateVerticalScale(66) + bottomInset,
+            paddingBottom: bottomInset,
+          },
+        ],
         tabBarAccessibilityLabel: TAB_LABELS[route.name] || route.name,
         tabBarHideOnKeyboard: true,
       })}
@@ -82,18 +95,10 @@ export default BottomNavigation;
 
 const styles = StyleSheet.create({
   tabBar: {
-    height:
-      Platform.OS === "android"
-        ? moderateVerticalScale(72)
-        : moderateVerticalScale(86),
     backgroundColor: Colors.white,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: Colors.border_grey,
     paddingTop: moderateVerticalScale(6),
-    paddingBottom:
-      Platform.OS === "android"
-        ? moderateVerticalScale(8)
-        : moderateVerticalScale(20),
     paddingHorizontal: moderateScale(8),
     elevation: 14,
     shadowColor: Colors.black,

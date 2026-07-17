@@ -8,8 +8,11 @@
 // directly therefore blanks or crashes the UI. Every list/detail/cart/wishlist
 // surface should read product data through these helpers instead.
 
+import { BASE_URL } from '../service/APIConfig';
+
 const CLOUDFRONT_BASE = 'https://d3dcdu6oc5g6yg.cloudfront.net/';
 const LOCAL_IMAGE_HOST = '10.0.2.2';
+const API_IMAGE_BASE = String(BASE_URL || '').replace(/\/+$/, '');
 
 const hasValue = value =>
   value !== undefined && value !== null && String(value).trim() !== '';
@@ -41,9 +44,28 @@ const encodeKeyPath = value =>
 
 const cdnUrlForKey = key => `${CLOUDFRONT_BASE}${encodeKeyPath(key)}`;
 
+const backendUrlForKey = key =>
+  API_IMAGE_BASE
+    ? `${API_IMAGE_BASE}/getImage?image=${encodeURIComponent(safeDecode(key))}`
+    : '';
+
 const extractGetImageKey = value => {
   const match = String(value || '').match(/[?&]image=([^&#]+)/i);
   return match ? safeDecode(match[1]) : '';
+};
+
+const extractKnownImageKey = value => {
+  const source = String(value || '');
+  if (!source.toLowerCase().startsWith(CLOUDFRONT_BASE.toLowerCase())) {
+    return '';
+  }
+  const key = source.slice(CLOUDFRONT_BASE.length).split(/[?#]/)[0];
+  if (!key) return '';
+  return safeDecode(key);
+};
+
+const appendUnique = (list, value) => {
+  if (value && !list.includes(value)) list.push(value);
 };
 
 export const getObjectId = value => {
@@ -53,37 +75,53 @@ export const getObjectId = value => {
 };
 
 // ─── Images ──────────────────────────────────────────────────────────
-const resolveImageUrl = url => {
+const resolveImageUrls = url => {
   const trimmed = String(url || '').trim();
-  if (!trimmed) return '';
+  if (!trimmed) return [];
   const proxyKey = trimmed.includes('/getImage')
     ? extractGetImageKey(trimmed)
     : '';
-  if (proxyKey) return resolveImageUrl(proxyKey);
+  if (proxyKey) return resolveImageUrls(proxyKey);
+
+  const candidates = [];
   if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//i.test(trimmed)) {
-    return trimmed.replace(
-      /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i,
-      `http://${LOCAL_IMAGE_HOST}$2`,
+    appendUnique(
+      candidates,
+      trimmed.replace(
+        /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?/i,
+        `http://${LOCAL_IMAGE_HOST}$2`,
+      ),
     );
+    return candidates;
   }
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
-    return trimmed;
+    appendUnique(candidates, trimmed);
+    const key = extractKnownImageKey(trimmed);
+    if (key) appendUnique(candidates, backendUrlForKey(key));
+    return candidates;
   }
-  // Bare S3/CloudFront keys that were not signed by the backend.
-  return cdnUrlForKey(trimmed);
+  // Bare S3 keys uploaded by the admin. Prefer the backend image endpoint
+  // because it can return signed S3 URLs or CDN redirects depending on config.
+  appendUnique(candidates, backendUrlForKey(trimmed));
+  appendUnique(candidates, cdnUrlForKey(trimmed));
+  return candidates;
 };
 
-const normalizeImage = image => {
+const normalizeImages = image => {
   if (typeof image === 'string' && image.trim()) {
-    return { image: resolveImageUrl(image) };
+    return resolveImageUrls(image).map(candidate => ({ image: candidate }));
   }
   if (isRecord(image)) {
     const src = stringOrEmpty(image.image || image.url || image.src);
     if (src) {
-      return { image: resolveImageUrl(src), alt: stringOrEmpty(image.alt) };
+      return resolveImageUrls(src).map(candidate => ({
+        ...image,
+        image: candidate,
+        alt: stringOrEmpty(image.alt),
+      }));
     }
   }
-  return null;
+  return [];
 };
 
 // Returns a de-blanked gallery ([] when the product has no usable image),
@@ -92,17 +130,20 @@ const normalizeImage = image => {
 export const getProductImages = product => {
   const source = product || {};
   const media = isRecord(source.media) ? source.media : {};
-  const rawImages = Array.isArray(source.images) && source.images.length
-    ? source.images
-    : Array.isArray(media.images) && media.images.length
-    ? media.images
-    : Array.isArray(media.gallery)
-    ? media.gallery
-    : [];
-  const images = rawImages.map(normalizeImage).filter(Boolean);
-  if (images.length) return images;
-  const thumbnail = normalizeImage(media.thumbnail);
-  return thumbnail ? [thumbnail] : [];
+  const rawImages = [
+    ...(Array.isArray(source.images) ? source.images : []),
+    media.thumbnail,
+    ...(Array.isArray(media.images) ? media.images : []),
+    ...(Array.isArray(media.gallery) ? media.gallery : []),
+  ].filter(Boolean);
+  const seen = new Set();
+  return rawImages
+    .flatMap(normalizeImages)
+    .filter(item => {
+      if (!item?.image || seen.has(item.image)) return false;
+      seen.add(item.image);
+      return true;
+    });
 };
 
 // Single display URI (the thumbnail). Empty string when the product has no

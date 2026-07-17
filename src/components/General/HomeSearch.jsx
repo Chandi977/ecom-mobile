@@ -80,8 +80,7 @@ export default HomeSearch;
 const styles = StyleSheet.create({
   searchBoxHolder: {
     borderWidth: moderateScale(2),
-    width: '90%',
-    alignSelf: 'center',
+    marginHorizontal: moderateScale(16),
     borderRadius: moderateScale(5),
     paddingHorizontal: moderateScale(10),
     minHeight: moderateVerticalScale(46),
@@ -100,8 +99,7 @@ const styles = StyleSheet.create({
   },
   itemHolder: {
     borderWidth: 2,
-    width: '85%',
-    alignSelf: 'center',
+    marginHorizontal: moderateScale(16),
     marginBottom: moderateVerticalScale(5),
     backgroundColor: Colors.back,
     borderRadius: moderateScale(5),

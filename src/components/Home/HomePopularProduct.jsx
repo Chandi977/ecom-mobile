@@ -27,7 +27,7 @@ import {
   showErrorMessage,
   showSuccessMessage,
 } from '../../utils/HelperFunction';
-import GuestCartService from '../../utils/GuestCartService';
+import CartService from '../../service/CartService';
 import { FadeInUp, PressableScale, Pop } from '../General/Motion';
 import ProductImage from '../product/ProductImage';
 import {
@@ -38,6 +38,12 @@ import {
   getProductDisplayName,
   isInStock,
 } from '../../utils/productCatalog';
+
+const getLineProductId = line => {
+  const lineProduct = line?.product;
+  if (typeof lineProduct === 'string') return lineProduct;
+  return lineProduct?._id || line?.productId || line?.product_id || '';
+};
 
 const HomePopularProduct = ({
   data,
@@ -52,6 +58,7 @@ const HomePopularProduct = ({
   const [wishlist, setWishlist] = useState([]);
   const [showLoginPopup, setShowLoginPopup] = useState(false);
   const [localWishlistUpdates, setLocalWishlistUpdates] = useState({});
+  const [cartProductIds, setCartProductIds] = useState(new Set());
   const [totalPrice, setTotalPrice] = useState(0);
   const isBuyItWith = comingFrom === 'buyItWith';
   const visibleProducts = useMemo(
@@ -82,47 +89,48 @@ const HomePopularProduct = ({
     });
   };
 
+  const fetchCartProducts = useCallback(async () => {
+    try {
+      const cart = await CartService.getCart();
+      setCartProductIds(
+        new Set((cart || []).map(getLineProductId).filter(Boolean)),
+      );
+    } catch (error) {
+      console.log('Error fetching cart products', error?.message);
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      fetchCartProducts();
+    }, [fetchCartProducts]),
+  );
+
+  const isItemInCart = productId => cartProductIds.has(productId);
+
+  const goToCart = () => {
+    navigation.navigate('Cart');
+  };
+
   const handleAddToCart = async product => {
     const tier = getPrimaryPriceTier(product);
-    const user = await StorageService.getItem('user_data');
-    if (user) {
-      const userData = parseStoredUser(user);
-      const cartData = {
-        product: {
-          product: product?._id,
-          packSize: tier.number,
-          price: tier.SP,
-          quantity: 1,
-          stock: 1000,
-          totalWeight: tier.number,
-          totalPackWeight: 0,
-        },
-        user: userData?._id,
-      };
-
-      try {
-        const response = await ApiService.ADD_TO_CART(cartData);
-        if (response?.success) {
-          showSuccessMessage('Product Added to cart successfully');
-          DeviceEventEmitter.emit('cartUpdated');
-        }
-      } catch (e) {
-        console.log('Error adding to cart:', e);
-      }
-    } else {
-      // Guest user: persist locally; merged into the server cart on login.
-      try {
-        await GuestCartService.addItem({
-          product,
-          packSize: tier.number,
-          price: tier.SP,
-          quantity: 1,
-        });
+    try {
+      const result = await CartService.addToCart(product, {
+        packSize: tier.number,
+        price: tier.SP,
+        quantity: 1,
+      });
+      if (result?.success) {
+        setCartProductIds(prev => new Set([...prev, product?._id].filter(Boolean)));
         showSuccessMessage('Product Added to cart successfully');
         DeviceEventEmitter.emit('cartUpdated');
-      } catch (e) {
-        console.log('Error adding to guest cart:', e);
+        setCartValueChanged && setCartValueChanged(prev => prev + 1);
+      } else {
+        showErrorMessage('Unable to add product to cart. Please try again.');
       }
+    } catch (e) {
+      console.log('Error adding to cart:', e);
+      showErrorMessage('Unable to add product to cart. Please try again.');
     }
   };
 
@@ -266,6 +274,7 @@ const HomePopularProduct = ({
           const title = getProductDisplayName(item, { brandNameById });
           const summary = getProductCardSummary(item);
           const inStock = isInStock(item);
+          const inCart = isItemInCart(item?._id);
 
           if (isBuyItWith) {
             return (
@@ -374,14 +383,20 @@ const HomePopularProduct = ({
 
                 <TouchableOpacity
                   onPress={() =>
-                    inStock
-                      ? handleAddToCart(item)
-                      : navigation.push('ProductDetails', { item })
+                    !inStock
+                      ? navigation.push('ProductDetails', { item })
+                      : inCart
+                      ? goToCart()
+                      : handleAddToCart(item)
                   }
                   style={[styles.button, !inStock && styles.buttonDisabled]}
                 >
                   <Text style={styles.buttonText}>
-                    {inStock ? 'ADD TO CART' : 'VIEW PRODUCT'}
+                    {!inStock
+                      ? 'VIEW PRODUCT'
+                      : inCart
+                      ? 'GO TO CART'
+                      : 'ADD TO CART'}
                   </Text>
                 </TouchableOpacity>
               </PressableScale>
@@ -437,12 +452,16 @@ const HomePopularProduct = ({
 
 export default HomePopularProduct;
 
-const CARD_WIDTH = moderateScale(168);
+const SCREEN_GUTTER = moderateScale(20);
+const CARD_GAP = moderateScale(12);
+const TWO_COLUMN_CARD_WIDTH = Math.floor((width - SCREEN_GUTTER * 2 - CARD_GAP) / 2);
+const CARD_WIDTH = Math.max(moderateScale(150), TWO_COLUMN_CARD_WIDTH);
 
 const styles = StyleSheet.create({
   item: {
     width: CARD_WIDTH,
-    margin: moderateScale(8),
+    marginRight: CARD_GAP,
+    marginVertical: moderateScale(8),
     backgroundColor: Colors.white,
     borderRadius: moderateScale(10),
     borderWidth: 1,
@@ -590,7 +609,8 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   productContentContainer: {
-    paddingHorizontal: moderateScale(8),
+    paddingLeft: SCREEN_GUTTER,
+    paddingRight: SCREEN_GUTTER - CARD_GAP,
     alignItems: 'stretch',
     flexGrow: 1,
   },

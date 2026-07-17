@@ -51,6 +51,8 @@ import {
   getProductImages,
   isInStock,
 } from '../utils/productCatalog';
+import { getOverviewFields, getProductKind } from '../utils/overviewFields';
+import { findLabelVariants, parseLabelModel } from '../utils/labelVariants';
 
 // ─── Category constants (mirrors web Info.tsx) ───
 const PACKPRO_TAPE_CATEGORY_ID = "6557df64301ec4f2f4266141";
@@ -75,41 +77,6 @@ const normalizeId = (value) => {
 
 const hasValue = (value) =>
   value !== undefined && value !== null && String(value).trim() !== "";
-
-const formatGst = (value, fallback = "Not Available") => {
-  if (!hasValue(value)) return fallback;
-  if (typeof value === "number") {
-    const percent = value <= 1 ? value * 100 : value;
-    return `${Number.isInteger(percent) ? percent : percent.toFixed(2)}%`;
-  }
-  const text = String(value).trim();
-  if (text.includes("%")) return text;
-  const numericValue = Number(text);
-  if (Number.isFinite(numericValue)) {
-    const percent = numericValue <= 1 ? numericValue * 100 : numericValue;
-    return `${Number.isInteger(percent) ? percent : percent.toFixed(2)}%`;
-  }
-  return text;
-};
-
-const getProductKind = (product) => {
-  const categoryId = normalizeId(product?.category);
-  const categoryName = typeof product?.category === "object" ? product?.category?.name || "" : "";
-  const categorySlug = typeof product?.category === "object" ? product?.category?.slug || "" : "";
-  const searchText = [product?.name, product?.slug, product?.model, categoryName, categorySlug]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  if (categoryId === PACKPRO_TAPE_CATEGORY_ID || /tape/i.test(searchText)) return "tape";
-  if (CARRY_BAG_CATEGORY_IDS.has(categoryId) || /carry.*bag/i.test(searchText)) return "carry-bag";
-  if (FOOD_WRAPPING_CATEGORY_IDS.has(categoryId) || /food.*wrapping|foil/.test(searchText)) return "foil-paper";
-  if (categoryId === LABEL_CATEGORY_ID || /label/i.test(searchText)) return "label";
-  if (categoryId === POLY_BAG_CATEGORY_ID || /poly.*bag/i.test(searchText)) return "polybag";
-  if (categoryId === PAPER_BAG_CATEGORY_ID || /paper.*bag/i.test(searchText)) return "paperbag";
-  if (categoryId === CORRUGATED_BOX_CATEGORY_ID || categoryId === "6926d7c0d53f3a772c6f08af" || /corrugated/i.test(searchText)) return "corrugated";
-  return "generic";
-};
 
 const FIELD_VISIBILITY_KEYS = {
   sectionQuickOverview: "section:quick_overview",
@@ -145,15 +112,7 @@ const isFieldVisible = (product, key) => {
   return true;
 };
 
-const SPEC_FIELD_KEYS = [
-  'length', 'width', 'height', 'length_inch', 'length_mm', 'breadth_inch',
-  'breadth_mm', 'height_inch', 'height_mm', 'size_inch', 'size_mm', 'flap_mm',
-  'thickness', 'thickness_micron', 'gusset', 'print', 'label_in_roll',
-  'core_size', 'pouch_weight', 'adhesive', 'material', 'color', 'colour',
-  'weight', 'size'
-];
-
-const getProductSpecification = (product) => {
+const getMobileSpecifications = (product) => {
   const source = product || {};
   const normalized = source.specification && typeof source.specification === 'object' ? source.specification : {};
   const attributes = normalized.attributes && typeof normalized.attributes === 'object' ? normalized.attributes : {};
@@ -165,17 +124,20 @@ const getProductSpecification = (product) => {
   delete specification.updatedAt;
   delete specification.attributes;
 
+  const SPEC_FIELD_KEYS = [
+    'length', 'width', 'height', 'length_inch', 'length_mm', 'breadth_inch',
+    'breadth_mm', 'height_inch', 'height_mm', 'size_inch', 'size_mm', 'flap_mm',
+    'thickness', 'thickness_micron', 'gusset', 'print', 'label_in_roll',
+    'core_size', 'pouch_weight', 'adhesive', 'material', 'color', 'colour',
+    'weight', 'size'
+  ];
+
   SPEC_FIELD_KEYS.forEach((key) => {
     if (!hasValue(specification[key]) && hasValue(source[key])) {
       specification[key] = source[key];
     }
   });
 
-  return specification;
-};
-
-const getMobileSpecifications = (product) => {
-  const specification = getProductSpecification(product);
   const HIDDEN_KEYS = new Set(['_id', 'product', 'createdAt', 'updatedAt', '__v']);
 
   const specSchema = product?.category?.spec_schema || [];
@@ -212,60 +174,6 @@ const getMobileSpecifications = (product) => {
       order: orderFor(key, encounterIndex),
     }))
     .sort((a, b) => a.order - b.order);
-};
-
-const getOverviewFields = (product, packSize, weightValue) => {
-  if (!product) return [];
-
-  const adminManagedFields = Array.isArray(product?.overview_fields)
-    ? product.overview_fields
-        .map((field) => ({
-          label: field?.label,
-          value: field?.value,
-        }))
-        .filter((field) => field?.label && hasValue(field?.value))
-    : [];
-
-  if (adminManagedFields.length > 0) return adminManagedFields;
-
-  const productKind = getProductKind(product);
-
-  const brandName = product?.brand?.name || "";
-  const prodName = product?.name || "";
-  const prodModel = product?.model || "";
-  const fullTitle = [brandName, prodName, prodModel].filter(Boolean).join(" ");
-
-  const formatBoolean = (val) => {
-    if (val === true || val === "true" || val === "Yes") return "Yes";
-    return "No";
-  };
-
-  // Labels are sold as rolls that each contain many stickers, so surface the
-  // per-roll count (e.g. "250") alongside the dimensions. Falls back to the
-  // specification sidecar for products fetched before flattening.
-  const labelsPerRoll = hasValue(product?.label_in_roll)
-    ? product.label_in_roll
-    : product?.specification?.label_in_roll;
-
-  const commonFields = [
-    { label: "Brand", value: brandName || "Not Available" },
-    { label: "Model", value: prodModel || "Not Available" },
-    { label: "Product Title", value: fullTitle || "Not Available" },
-    { label: "Dimension (inch)", value: product?.size_inch || "Not Available" },
-    { label: "Dimension (mm)", value: product?.size_mm || "Not Available" },
-    { label: "Labels per Roll", value: hasValue(labelsPerRoll) ? String(labelsPerRoll) : "Not Available" },
-    { label: "HSN Code", value: product?.hsn_code || "Not Available" },
-    { label: "GST", value: formatGst(product?.gst) },
-    { label: "Pack Size", value: hasValue(packSize) ? packSize : "Not Available" },
-    { label: "Weight", value: hasValue(weightValue) ? `${weightValue} kg` : "Not Available" },
-    { label: "Colour", value: product?.color || "Not Available" },
-    { label: "Material", value: product?.material || "Not Available" },
-    { label: "Recyclable", value: product?.recyclable !== undefined ? formatBoolean(product?.recyclable) : "Not Available" },
-    { label: "Biodegradable", value: product?.biodegradable !== undefined ? formatBoolean(product?.biodegradable) : "Not Available" },
-    { label: "Delivery Time", value: product?.delivery_time || "Not Available" },
-  ].filter((field) => field.value !== "Not Available");
-
-  return commonFields;
 };
 
 const renderMultilineTextMobile = (text) => {
@@ -324,6 +232,8 @@ const ProductDetails = ({ route }) => {
   const [isCrossLoading, setIsCrossLoading] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
   const [isAddedToCart, setIsAddedToCart] = useState(false);
+  const [labelVariants, setLabelVariants] = useState([]);
+  const [selectedLabelVariant, setSelectedLabelVariant] = useState(null);
 
   const CROSS_CATEGORY_MAP = {
     '6557df46301ec4f2f4266139': [
@@ -411,12 +321,39 @@ const ProductDetails = ({ route }) => {
     }
   };
 
+  const fetchLabelVariants = async () => {
+    if (!item || !parseLabelModel(item?.model) || getProductKind(item) !== 'label') {
+      setLabelVariants([]);
+      setSelectedLabelVariant(null);
+      return;
+    }
+    const subCategoryId =
+      typeof item?.sub_category === 'object'
+        ? item?.sub_category?._id
+        : item?.sub_category;
+    if (!subCategoryId) return;
+    try {
+      const response = await ApiService.FILTER_PRODUCTS({
+        subcategory: String(subCategoryId),
+        limit: 200,
+      });
+      const variants = findLabelVariants(item, response?.data ?? []);
+      setLabelVariants(variants);
+      if (selectedLabelVariant === null || !variants.find(v => v.slug === selectedLabelVariant?.slug)) {
+        setSelectedLabelVariant(variants.length > 0 ? variants[0] : null);
+      }
+    } catch (error) {
+      console.log('Error fetching label variants:', error);
+    }
+  };
+
   useFocusEffect(
     useCallback(() => {
       fetchWishlist();
       fetchFreshProduct();
       fetchSingleProduct();
       fetchCrossCategoryProducts();
+      fetchLabelVariants();
 
       if (route?.params?.autoAddToCart && !autoAddExecutedRef.current) {
         autoAddExecutedRef.current = true;
@@ -588,9 +525,36 @@ const ProductDetails = ({ route }) => {
     packWeight ? packWeight : primaryTier.pack_weight,
   );
 
+  const getCartLineProductId = line => {
+    const lineProduct = line?.product;
+    if (typeof lineProduct === 'string') return lineProduct;
+    return lineProduct?._id || line?.productId || line?.product_id || '';
+  };
+
+  const isMatchingCartLine = line => {
+    if (getCartLineProductId(line) !== item?._id) return false;
+    if (selectedPackSize === undefined || selectedPackSize === null) return true;
+    return String(line?.packSize) === String(selectedPackSize);
+  };
+
+  const checkCartLineStatus = useCallback(async () => {
+    if (!item?._id) {
+      setIsAddedToCart(false);
+      return;
+    }
+    try {
+      const cart = await CartService.getCart();
+      setIsAddedToCart((cart || []).some(isMatchingCartLine));
+    } catch (error) {
+      console.log('Error checking cart status:', error?.message);
+      setIsAddedToCart(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [item?._id, selectedPackSize]);
+
   useEffect(() => {
-    setIsAddedToCart(false);
-  }, [item?._id, selectedPackSize, selectedPrice, count]);
+    checkCartLineStatus();
+  }, [checkCartLineStatus]);
 
   const handlePackSize = () => {
     setShowPackSizeModal(true);
@@ -728,6 +692,7 @@ const ProductDetails = ({ route }) => {
                 />
               )}
               <ProductImage
+                product={item}
                 uri={bigImage || getProductImageUri(item)}
                 style={styles.imageStyle}
                 resizeMode={FastImage.resizeMode.contain}
@@ -774,45 +739,7 @@ const ProductDetails = ({ route }) => {
                   })}
                 </ScrollView>
               </View>
-              <View
-                style={{
-                  marginVertical: moderateVerticalScale(10),
-                  gap: moderateScale(10),
-                }}
-              >
-                <Text
-                  style={[
-                    styles.name,
-                    {
-                      fontFamily: FontFamily.Montserrat_Bold,
-                      fontSize: textScale(15),
-                    },
-                  ]}
-                >
-                  About the item
-                </Text>
-                <View style={styles.itemHolder}>
-                  <Text style={styles.text2}>
-                    1. Price per{' '}
-                    {number ? number : primaryTier.number} pcs + GST
-                    18%
-                  </Text>
-                  <Text style={styles.text2}>
-                    2. Brand : - {item?.brand?.name ? item?.brand?.name : 'N/A'}{' '}
-                  </Text>
-                  <Text style={styles.text2}>
-                    3. Model : - {item?.model ? item?.model : 'N/A'}{' '}
-                  </Text>
-                  <Text style={styles.text2}>
-                    4. Dimensions : -{' '}
-                    {item?.size_inch ? item?.size_inch : 'N/A'}( inches)
-                  </Text>
-                  <Text style={styles.text2}>
-                    5. Pack of {number ? number : primaryTier.number}{' '}
-                    Pcs
-                  </Text>
-                </View>
-              </View>
+
             </View>
           </View>
           {/* Second Sections */}
@@ -833,13 +760,14 @@ const ProductDetails = ({ route }) => {
               </Text>
             </View>
             <View style={styles.priceHolder}>
-              {(mrp ? Number(mrp) : Number(primaryTier.MRP || 0)) > (sp ? Number(sp) : Number(primaryTier.SP || 0)) && (
+              {/* MRP with inflation (matches web ProductPricing.tsx:54) */}
+              {(mrp ? Number(mrp) : Number(primaryTier.MRP || 0)) > 0 && (
                 <View
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
                     gap: moderateScale(5),
-                    marginBottom: moderateVerticalScale(10),
+                    marginBottom: moderateVerticalScale(5),
                   }}
                 >
                   <Text
@@ -849,19 +777,81 @@ const ProductDetails = ({ route }) => {
                       fontFamily: FontFamily.Montserrat_Regular,
                     }}
                   >
-                    M.R.P
+                    MRP
+                  </Text>
+                  <Text style={styles.mrpText}>
+                    Rs.{mrp ? Math.round(Number(mrp) * 1.124) : primaryTier.MRP ? Math.round(Number(primaryTier.MRP) * 1.124) : 0}
+                  </Text>
+                </View>
+              )}
+              {/* New MRP row (matches web) */}
+              {(mrp ? Number(mrp) : Number(primaryTier.MRP || 0)) > 0 && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: moderateScale(5),
+                    marginBottom: moderateVerticalScale(5),
+                  }}
+                >
+                  <Text
+                    style={{
+                      color: Colors.brandColor,
+                      fontSize: textScale(14),
+                      fontFamily: FontFamily.Montserrat_Regular,
+                    }}
+                  >
+                    New MRP
                   </Text>
                   <Text style={styles.mrpText}>
                     Rs.{mrp ? mrp : primaryTier.MRP}
                   </Text>
                 </View>
               )}
-              {priceTiers.length > 2 && (
-                <Text style={styles.price}>
-                  Rs.{sp ? sp : primaryTier.SP}
+              <Text style={styles.price}>
+                Rs.{sp ? sp : primaryTier.SP}
+              </Text>
+              {Number.isFinite(Number(sp ? sp : primaryTier.SP)) && Number.isFinite(Number(mrp ? mrp : primaryTier.MRP)) && Number(mrp ? mrp : primaryTier.MRP) > Number(sp ? sp : primaryTier.SP) && (
+                <Text style={{ color: '#16a34a', fontSize: textScale(14), fontFamily: FontFamily.Montserrat_SemiBold, marginTop: moderateVerticalScale(2) }}>
+                  {Math.round(((Number(mrp ? mrp : primaryTier.MRP) - Number(sp ? sp : primaryTier.SP)) / Number(mrp ? mrp : primaryTier.MRP)) * 100)}% off
                 </Text>
               )}
-              {priceTiers.length > 2 ? (
+              <View
+                style={{
+                  marginVertical: moderateVerticalScale(5),
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                }}
+              >
+                <Text style={styles.text2}>Select Pack Size</Text>
+                <TouchableOpacity
+                  style={{
+                    width: '45%',
+                    alignItems: 'center',
+                    borderWidth: 2,
+                    borderRadius: moderateScale(5),
+                    backgroundColor: Colors.border_grey,
+                    borderColor: Colors.border_grey,
+                    padding: moderateScale(5),
+                    flexDirection: 'row',
+                    justifyContent: 'space-evenly',
+                    gap: moderateScale(5),
+                  }}
+                  onPress={handlePackSize}
+                >
+                  <Text style={styles.text2}>
+                    {number ? number : primaryTier.number}
+                  </Text>
+                  <AntDesign
+                    name="down"
+                    color={Colors.brandColor}
+                    size={textScale(14)}
+                  />
+                </TouchableOpacity>
+              </View>
+              {/* Label variants dropdown (Labels per Roll) — matches web ProductPricing */}
+              {labelVariants.length > 1 && (
                 <View
                   style={{
                     marginVertical: moderateVerticalScale(5),
@@ -870,7 +860,7 @@ const ProductDetails = ({ route }) => {
                     alignItems: 'center',
                   }}
                 >
-                  <Text style={styles.text2}>Select Pack Size</Text>
+                  <Text style={styles.text2}>Labels per Roll</Text>
                   <TouchableOpacity
                     style={{
                       width: '45%',
@@ -884,10 +874,19 @@ const ProductDetails = ({ route }) => {
                       justifyContent: 'space-evenly',
                       gap: moderateScale(5),
                     }}
-                    onPress={handlePackSize}
+                    onPress={() => {
+                      // Cycle through variants
+                      const currentIndex = labelVariants.findIndex(v => v.slug === selectedLabelVariant?.slug);
+                      const nextIndex = (currentIndex + 1) % labelVariants.length;
+                      const next = labelVariants[nextIndex];
+                      setSelectedLabelVariant(next);
+                      if (next?.slug && next.slug !== item?.slug) {
+                        navigation.replace('ProductDetails', { item: next.product || item });
+                      }
+                    }}
                   >
                     <Text style={styles.text2}>
-                      {number ? number : primaryTier.number}
+                      {selectedLabelVariant?.labelQty || labelVariants[0]?.labelQty || ''}
                     </Text>
                     <AntDesign
                       name="down"
@@ -896,8 +895,6 @@ const ProductDetails = ({ route }) => {
                     />
                   </TouchableOpacity>
                 </View>
-              ) : (
-                <Text style={styles.price}>Rs.{primaryTier.SP}</Text>
               )}
             </View>
             <View style={styles.divider} />
@@ -992,59 +989,33 @@ const ProductDetails = ({ route }) => {
               </View>
             )}
 
-            {/* 4 Icons */}
-            {(() => {
-              const visibleBadges = [
-                isFieldVisible(item, 'badge:free_delivery') && { id: 1, name: 'Free Delivery', image: ImagePath.delivery },
-                isFieldVisible(item, 'badge:secure_transaction') && { id: 2, name: 'Secured Transaction', image: ImagePath.secure },
-                isFieldVisible(item, 'badge:no_returns') && { id: 3, name: 'No Return', image: ImagePath.noReturn },
-                isFieldVisible(item, 'badge:recyclable') && { id: 4, name: '100% Recyclable', image: ImagePath.recycle },
-              ].filter(Boolean);
-
-              if (visibleBadges.length === 0) return null;
-
-              return (
-                <View
-                  style={{
-                    marginVertical: moderateVerticalScale(10),
-                    flexDirection: 'row',
-                    alignItems: 'flex-start',
-                    justifyContent: 'space-between',
-                    paddingHorizontal: moderateScale(10),
-                  }}
-                >
-                  {visibleBadges.map(badge => (
-                    <View
-                      key={badge?.id}
-                      style={{
-                        alignItems: 'center',
-                        width: `${Math.floor(92 / visibleBadges.length)}%`,
-                        gap: moderateVerticalScale(5),
-                      }}
-                    >
-                      <Image
-                        source={badge?.image}
-                        resizeMode="contain"
-                        style={{
-                          width: moderateScale(24),
-                          height: moderateScale(24),
-                        }}
-                      />
-                      <Text
-                        style={{
-                          fontFamily: FontFamily.Montserrat_Medium,
-                          color: Colors.black,
-                          fontSize: textScale(9),
-                          textAlign: 'center',
-                        }}
-                      >
-                        {badge?.name}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              );
-            })()}
+            {/* 4 Icons — matches web: always-visible static badges */}
+            <View
+              style={{
+                marginVertical: moderateVerticalScale(10),
+                flexDirection: 'row',
+                alignItems: 'flex-start',
+                justifyContent: 'space-between',
+                paddingHorizontal: moderateScale(10),
+              }}
+            >
+              <View style={{ alignItems: 'center', width: '23%', gap: moderateVerticalScale(5) }}>
+                <Image source={ImagePath.delivery} resizeMode="contain" style={{ width: moderateScale(24), height: moderateScale(24) }} />
+                <Text style={{ fontFamily: FontFamily.Montserrat_Medium, color: Colors.black, fontSize: textScale(9), textAlign: 'center' }}>Free Delivery</Text>
+              </View>
+              <View style={{ alignItems: 'center', width: '23%', gap: moderateVerticalScale(5) }}>
+                <Image source={ImagePath.secure} resizeMode="contain" style={{ width: moderateScale(24), height: moderateScale(24) }} />
+                <Text style={{ fontFamily: FontFamily.Montserrat_Medium, color: Colors.black, fontSize: textScale(9), textAlign: 'center' }}>Secure Packaging</Text>
+              </View>
+              <View style={{ alignItems: 'center', width: '23%', gap: moderateVerticalScale(5) }}>
+                <Image source={ImagePath.noReturn} resizeMode="contain" style={{ width: moderateScale(24), height: moderateScale(24) }} />
+                <Text style={{ fontFamily: FontFamily.Montserrat_Medium, color: Colors.black, fontSize: textScale(9), textAlign: 'center' }}>Bulk Order</Text>
+              </View>
+              <View style={{ alignItems: 'center', width: '23%', gap: moderateVerticalScale(5) }}>
+                <Image source={ImagePath.recycle} resizeMode="contain" style={{ width: moderateScale(24), height: moderateScale(24) }} />
+                <Text style={{ fontFamily: FontFamily.Montserrat_Medium, color: Colors.black, fontSize: textScale(9), textAlign: 'center' }}>Eco Friendly</Text>
+              </View>
+            </View>
             {/* Return Days */}
             {/* <View style={styles.returnHolder}>
             <View style={styles.innerView4}>

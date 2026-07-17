@@ -1,5 +1,6 @@
 import { Image, StyleSheet, TouchableOpacity, View, Text, DeviceEventEmitter } from "react-native";
 import React, { useEffect, useState } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Feather from "react-native-vector-icons/Feather";
 import Colors from "../../utils/Colors";
 import {
@@ -19,6 +20,7 @@ import { Pop } from "./Motion";
 const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
   // console.log(cartValueChanged, wishlistValueChanged, "line 13");
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [cartCount, setCartCount] = useState(0);
   const [wishlistCount, setWishlistCount] = useState(0);
   const [notifCount, setNotifCount] = useState(0);
@@ -97,7 +99,18 @@ const BottomNavigationHeader = ({ cartValueChanged, wishlistValueChanged }) => {
   };
 
   return (
-    <View style={styles.main}>
+    <View
+      style={[
+        styles.main,
+        {
+          paddingLeft: Math.max(moderateScale(12), insets.left + moderateScale(8)),
+          paddingRight: Math.max(
+            moderateScale(12),
+            insets.right + moderateScale(8),
+          ),
+        },
+      ]}
+    >
       <View style={styles.itemHolder}>
         <TouchableOpacity
           activeOpacity={0.75}
@@ -182,7 +195,6 @@ export default BottomNavigationHeader;
 
 const styles = StyleSheet.create({
   main: {
-    paddingHorizontal: moderateScale(8),
     paddingVertical: moderateVerticalScale(4),
     backgroundColor: Colors.white,
   },
@@ -206,9 +218,11 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     minWidth: 0,
+    paddingHorizontal: moderateScale(4),
   },
   imageStyle: {
     width: "100%",
+    maxWidth: moderateScale(190),
     height: moderateVerticalScale(42),
   },
   iconHolder: {
@@ -219,9 +233,9 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   actionButton: {
-    width: moderateScale(42),
-    height: moderateScale(42),
-    borderRadius: moderateScale(21),
+    width: moderateScale(38),
+    height: moderateScale(38),
+    borderRadius: moderateScale(19),
     alignItems: "center",
     justifyContent: "center",
   },

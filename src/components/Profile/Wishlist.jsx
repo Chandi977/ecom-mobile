@@ -21,13 +21,13 @@ import ApiService from '../../service/APIService';
 import WrapperContainer from '../../utils/WrapperContainer';
 import StorageService from '../../utils/storageService';
 import { parseStoredUser, showSuccessMessage } from '../../utils/HelperFunction';
+import ProductImage from '../product/ProductImage';
 import {
   buildEntityNameById,
   getProductBrandName,
 } from '../../utils/productFields';
 import {
   getPrimaryPriceTier,
-  getProductImageUri,
 } from '../../utils/productCatalog';
 
 const Wishlist = () => {
@@ -37,7 +37,6 @@ const Wishlist = () => {
   const [wishlist, setWishlist] = useState([]);
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState(null);
-  const placeholderImage = 'https://prempackaging.com/img/logo.png';
   const [brandNameById, setBrandNameById] = useState({});
 
   useEffect(() => {
@@ -136,28 +135,10 @@ const Wishlist = () => {
                     onPress={() => handleProductDetails(item?.product)}
                   >
                     <View style={styles.cartImageHolder}>
-                      <FastImage
+                      <ProductImage
+                        product={item?.product}
                         style={styles.cartImage}
-                        source={{
-                          uri:
-                            getProductImageUri(item?.product) ||
-                            placeholderImage,
-                          priority: FastImage.priority.high,
-                          cache: FastImage.cacheControl.immutable,
-                        }}
                         resizeMode={FastImage.resizeMode.cover}
-                        onError={() =>
-                          setWishlist(prevWishlist =>
-                            prevWishlist.map(wishlistItem =>
-                              wishlistItem._id === item._id
-                                ? {
-                                    ...wishlistItem,
-                                    images: [{ image: placeholderImage }],
-                                  }
-                                : wishlistItem,
-                            ),
-                          )
-                        }
                       />
                     </View>
                     <View style={styles.nameHolder}>

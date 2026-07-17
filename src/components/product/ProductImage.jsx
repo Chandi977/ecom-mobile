@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import FastImage from 'react-native-fast-image';
 import { ImagePath } from '../../utils/ImagePath';
-import { getProductImageUri } from '../../utils/productCatalog';
+import { getProductImages } from '../../utils/productCatalog';
 
 // Bundled placeholder shown when a product has no image or the remote image
 // fails to load — the mobile counterpart of the web app's ProductImage
@@ -18,13 +18,24 @@ const ProductImage = ({
   onLoadEnd,
   ...rest
 }) => {
-  const resolvedUri = uri !== undefined ? uri : getProductImageUri(product);
-  const [failed, setFailed] = useState(false);
-  const showFallback = failed || !resolvedUri;
+  const candidates = useMemo(() => {
+    const list = [];
+    if (uri) list.push(uri);
+    if (product) {
+      getProductImages(product).forEach(item => {
+        if (item?.image && !list.includes(item.image)) list.push(item.image);
+      });
+    }
+    return list;
+  }, [product, uri]);
+  const candidateKey = candidates.join('|');
+  const [candidateIndex, setCandidateIndex] = useState(0);
+  const resolvedUri = candidates[candidateIndex] || '';
+  const showFallback = !resolvedUri;
 
   useEffect(() => {
-    setFailed(false);
-  }, [resolvedUri]);
+    setCandidateIndex(0);
+  }, [candidateKey]);
 
   // When we render the local placeholder there are no reliable remote load
   // events, so proactively signal start/end — otherwise a caller that gates a
@@ -55,7 +66,11 @@ const ProductImage = ({
       resizeMode={resizeMode}
       onLoadStart={onLoadStart}
       onLoadEnd={onLoadEnd}
-      onError={() => setFailed(true)}
+      onError={() => {
+        setCandidateIndex(currentIndex => {
+          return Math.min(currentIndex + 1, candidates.length);
+        });
+      }}
     />
   );
 };
