@@ -81,14 +81,6 @@ const HomePopularProduct = ({
     })();
   }, []);
 
-  const handleAddToCartBuyItWith = bundleProducts => {
-    bundleProducts.forEach(item => {
-      if (isInStock(item)) {
-        handleAddToCart(item);
-      }
-    });
-  };
-
   const fetchCartProducts = useCallback(async () => {
     try {
       const cart = await CartService.getCart();
@@ -110,6 +102,20 @@ const HomePopularProduct = ({
 
   const goToCart = () => {
     navigation.navigate('Cart');
+  };
+
+  const handleAddToCartBuyItWith = bundleProducts => {
+    const availableProducts = (bundleProducts || []).filter(isInStock);
+    const missingProducts = availableProducts.filter(item => !isItemInCart(item?._id));
+
+    if (!missingProducts.length) {
+      goToCart();
+      return;
+    }
+
+    missingProducts.forEach(item => {
+      handleAddToCart(item);
+    });
   };
 
   const handleAddToCart = async product => {
@@ -435,7 +441,12 @@ const HomePopularProduct = ({
             onPress={() => handleAddToCartBuyItWith(visibleProducts)}
           >
             <Text style={styles.buttonText2}>
-              Add all {visibleProducts.length} to cart
+              {visibleProducts.some(isInStock) &&
+              visibleProducts
+                .filter(isInStock)
+                .every(item => isItemInCart(item?._id))
+                ? 'GO TO CART'
+                : `Add all ${visibleProducts.length} to cart`}
             </Text>
           </TouchableOpacity>
         </View>
