@@ -44,6 +44,8 @@ import {
 } from '../utils/HelperFunction';
 import CartService from '../service/CartService';
 import ProductImage from './product/ProductImage';
+import ProductReviews from './product/reviews/ProductReviews';
+import StarRating from './product/reviews/StarRating';
 import {
   getPriceTiers,
   getPrimaryPriceTier,
@@ -683,6 +685,14 @@ const ProductDetails = ({ route }) => {
                 <Text style={[styles.name, { textTransform: 'capitalize' }]}>
                   {item?.brand?.name ? `${item.brand.name} ` : ''}{item?.name} {item?.model || ''}
                 </Text>
+                {Number(item?.ratingCount) > 0 && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: moderateVerticalScale(4) }}>
+                    <StarRating value={Number(item?.ratingAverage) || 0} size={14} />
+                    <Text style={{ marginLeft: 6, fontSize: textScale(11.5), color: Colors.text_grey }}>
+                      {(Number(item?.ratingAverage) || 0).toFixed(1)} ({item?.ratingCount})
+                    </Text>
+                  </View>
+                )}
               </View>
               {imageLoading && (
                 <ActivityIndicator
@@ -1243,6 +1253,10 @@ const ProductDetails = ({ route }) => {
               <Text style={styles.nanText}>No Related Products</Text>
             )}
           </View>
+          <ProductReviews
+            productId={item?._id}
+            onRequireLogin={() => setShowLoginPopup(true)}
+          />
           <BottomModalForPackSize
             visible={packSizeModal}
             data={packSizeData}

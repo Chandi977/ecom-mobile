@@ -404,6 +404,35 @@ const ApiService = {
     return ApiService.postWithFallbackBackend(API_ENDPOINTS.NOTIFICATIONS.UNREGISTER_DEVICE, data);
   },
 
+  // REVIEWS
+  async GET_PRODUCT_REVIEWS(productId, params = {}) {
+    return ApiService.get(`${API_ENDPOINTS.REVIEWS.GET_PRODUCT_REVIEWS}${productId}`, { params });
+  },
+
+  async GET_REVIEW_SUMMARY(productId) {
+    return ApiService.get(`${API_ENDPOINTS.REVIEWS.GET_SUMMARY}${productId}`);
+  },
+
+  async GET_REVIEW_ELIGIBILITY(productId) {
+    return ApiService.get(`${API_ENDPOINTS.REVIEWS.GET_ELIGIBILITY}${productId}`);
+  },
+
+  async GET_MY_REVIEW(productId) {
+    return ApiService.get(`${API_ENDPOINTS.REVIEWS.GET_MINE}${productId}`);
+  },
+
+  async CREATE_REVIEW(data) {
+    return ApiService.post(API_ENDPOINTS.REVIEWS.CREATE_REVIEW, data);
+  },
+
+  async UPDATE_REVIEW(id, data) {
+    return ApiService.patch(`${API_ENDPOINTS.REVIEWS.UPDATE_REVIEW}${id}`, data);
+  },
+
+  async MARK_REVIEW_HELPFUL(id) {
+    return ApiService.post(`${API_ENDPOINTS.REVIEWS.MARK_HELPFUL}${id}/helpful`, {});
+  },
+
   _handleError(error) {
     return error;
   },

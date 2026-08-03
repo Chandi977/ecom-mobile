@@ -94,6 +94,16 @@ export const API_ENDPOINTS = {
     CREATE_CONTACT: 'contact-form/create',
   },
 
+  REVIEWS: {
+    GET_PRODUCT_REVIEWS: 'review/product/', // append `${productId}`
+    GET_SUMMARY: 'review/summary/', // append `${productId}`
+    GET_ELIGIBILITY: 'review/eligibility/', // append `${productId}`
+    GET_MINE: 'review/mine/', // append `${productId}`
+    CREATE_REVIEW: 'review/create',
+    UPDATE_REVIEW: 'review/', // append `${id}`
+    MARK_HELPFUL: 'review/', // append `${id}/helpful`
+  },
+
   NOTIFICATIONS: {
     GET_FEED: 'notification/feed',
     UNREAD_COUNT: 'notification/feed/unread-count',
