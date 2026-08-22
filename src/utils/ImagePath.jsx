@@ -10,4 +10,13 @@ export const ImagePath = {
     secure:require("../assets/images/secure.png"),
     noReturn:require("../assets/images/noReturn.png"),
     recycle:require("../assets/images/recycle.png"),
+    heroPackaging: require("../assets/images/hero-packaging.webp"),
+    customBox: require("../assets/images/custom-box.webp"),
+    categoryCorrugatedBoxes: require("../assets/images/category-cutouts/corrugated-boxes.png"),
+    categoryPaperBags: require("../assets/images/category-cutouts/paper-bags.png"),
+    categoryPolyBags: require("../assets/images/category-cutouts/poly-bags.png"),
+    categoryBoppTapes: require("../assets/images/category-cutouts/bopp-tapes.png"),
+    categoryChromoLabels: require("../assets/images/category-cutouts/chromo-labels.png"),
+    categoryCarryBags: require("../assets/images/category-cutouts/carry-bags.png"),
+    categoryWrappingPapers: require("../assets/images/category-cutouts/wrapping-papers.png"),
 }
