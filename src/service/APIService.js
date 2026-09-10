@@ -278,6 +278,19 @@ const ApiService = {
     return ApiService.get(`${API_ENDPOINTS.CART.GET_TOTAL_CART_COUNT}${id}`);
   },
 
+  // COMBO ORDERS
+  async GET_ALL_COMBOS() {
+    return ApiService.get(API_ENDPOINTS.COMBO_ORDERS.GET_ALL_COMBOS);
+  },
+
+  async GET_COMBO_BY_SLUG(slug) {
+    return ApiService.get(
+      `${API_ENDPOINTS.COMBO_ORDERS.GET_COMBO_BY_SLUG}${encodeURIComponent(
+        slug,
+      )}`,
+    );
+  },
+
   // WISHLIST
   async GET_WISHLIST_PRODUCTS(id) {
     return ApiService.get(

@@ -347,6 +347,23 @@ function CustomDrawerContent(props) {
           <Feather name="chevron-right" size={textScale(16)} color={Colors.brandColor} />
         </TouchableOpacity>
 
+        {/* Combo Orders */}
+        <TouchableOpacity
+          style={styles.drawerMenuItem}
+          onPress={() => {
+            closeDrawer();
+            navigation.navigate("Combo Orders");
+          }}
+        >
+          <View style={styles.drawerMenuItemLeft}>
+            <Feather name="grid" size={textScale(16)} color={Colors.brandColor} />
+            <Text style={styles.drawerMenuText} numberOfLines={1}>
+              Combo Orders
+            </Text>
+          </View>
+          <Feather name="chevron-right" size={textScale(16)} color={Colors.brandColor} />
+        </TouchableOpacity>
+
         {/* Contact Us */}
         <TouchableOpacity
           style={styles.drawerMenuItem}

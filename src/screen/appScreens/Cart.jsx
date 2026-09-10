@@ -132,7 +132,7 @@ export default function Cart() {
       (total, item) => total + item.price * item.quantity,
       0,
     );
-    return total - appliedDiscount; // Subtract the discount from total
+    return total;
   }
 
   const emptyCart = async userId => {
@@ -231,10 +231,10 @@ export default function Cart() {
   const handleCouponApply = async () => {
   try {
     const date = new Date();
-    const todayDate = date.toISOString();
 
-    const response = await ApiService.GET_COUPON_BY_COUPON_CODE(couponCode);
-    console.log(response, 'Line 164');
+    const response = await ApiService.GET_COUPON_BY_COUPON_CODE(
+      couponCode.toUpperCase(),
+    );
 
     if (!response || !response.success || !response.data) {
       showErrorMessage('Invalid Coupon, Please enter a valid coupon code');
@@ -243,27 +243,47 @@ export default function Cart() {
 
     const coupon = response.data;
 
-    // ✅ Date validation
-    if (todayDate < coupon.startDate || todayDate > coupon.endDate) {
-      showErrorMessage('Invalid Coupon, Coupon is not active');
+    if (coupon?.isActive === false) {
+      showErrorMessage('Coupon is not active');
       return;
     }
 
-    // ✅ Minimum cart value check
-    if (getCartTotal() < coupon.minimumOrderValue) {
+    // ✅ Date validation (using correct validFrom/validTo fields)
+    if (coupon.validFrom && date < new Date(coupon.validFrom)) {
+      showErrorMessage('Invalid Coupon, Coupon is not active');
+      return;
+    }
+    if (coupon.validTo && date > new Date(coupon.validTo)) {
+      showErrorMessage('Invalid Coupon, Coupon has expired');
+      return;
+    }
+
+    // ✅ Minimum cart value check (using minOrderValue)
+    const baseTotal = getCartTotal() + appliedDiscount;
+    if (coupon.minOrderValue && baseTotal < coupon.minOrderValue) {
       showErrorMessage(
-        `Insufficient Cart Value. Minimum order value is ₹${coupon.minimumOrderValue}`
+        `Insufficient Cart Value. Minimum order value is ₹${coupon.minOrderValue}`
       );
       return;
     }
 
-    // ✅ Calculate discount
-    let discountAmount = Math.min(
-      (getCartTotal() * coupon.discountPercentage) / 100,
-      coupon.maxDiscountCap,
-    );
+    // ✅ Calculate discount (support both percentage and fixed)
+    const discountType = coupon.discountType;
+    const discountValue = Number(coupon.discountValue) || 0;
+    const maxCap = Number(coupon.maxDiscount) || 0;
 
-    const newTotal = getCartTotal() - discountAmount;
+    let discountAmount;
+    if (discountType === 'percentage') {
+      discountAmount = (baseTotal * discountValue) / 100;
+    } else {
+      discountAmount = discountValue;
+    }
+    if (maxCap > 0 && discountAmount > maxCap) {
+      discountAmount = maxCap;
+    }
+    if (discountAmount > baseTotal) {
+      discountAmount = baseTotal;
+    }
 
     setAppliedDiscount(discountAmount);
 
@@ -272,17 +292,10 @@ export default function Cart() {
       `Discount applied: ₹${discountAmount.toFixed(2)}`
     );
 
-    // setCartTotal(newTotal);
-
   } catch (error) {
-    console.log("Coupon Error:", error.response);
+    console.log('Coupon Error:', error.response);
 
-    // ✅ MAIN FIX: Handle 404 here
-     if (error?.message?.includes('404')) {
     showErrorMessage('Invalid Coupon code');
-  } else {
-    showErrorMessage('Invalid Coupon code');
-  }
   }
 };
 
@@ -379,10 +392,11 @@ export default function Cart() {
                     <View style={styles.couponContainer}>
                       <TextInput
                         placeholder="Coupon Code"
-                        onChangeText={text => setCouponCode(text)}
+                        onChangeText={text => setCouponCode(text.toUpperCase())}
                         placeholderTextColor={'gray'}
                         value={couponCode}
                         style={styles.couponInput}
+                        autoCapitalize="characters"
                       />
                     </View>
 
@@ -452,7 +466,7 @@ export default function Cart() {
                       <View style={styles.cartTotalPiceHolder}>
                         <Text style={styles.cartSubtotalText}>Total:</Text>
                         <Text style={styles.cartTotalPrice}>
-                          ₹{getCartTotal()}
+                          ₹{getCartTotal() - appliedDiscount}
                         </Text>
                       </View>
                       {/* Checkout Button */}

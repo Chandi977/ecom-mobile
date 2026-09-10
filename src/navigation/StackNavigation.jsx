@@ -34,6 +34,7 @@ import Settings from '../screen/appScreens/Settings';
 import AccountPrivacy from '../screen/appScreens/AccountPrivacy';
 import ContactUs from '../screen/appScreens/ContactUs';
 import Notifications from '../screen/appScreens/Notifications';
+import ComboOrders from '../screen/appScreens/ComboOrders';
 
 const Stack = createStackNavigator();
 
@@ -51,6 +52,7 @@ const StackNavigation = () => {
         <Stack.Screen name="AccountPrivacy" component={AccountPrivacy} />
         <Stack.Screen name="Contact Us" component={ContactUs} />
         <Stack.Screen name="About Us" component={AboutUs} />
+        <Stack.Screen name="Combo Orders" component={ComboOrders} />
         <Stack.Screen name="Privacy Policy" component={PrivacyPolicy} />
         <Stack.Screen name="Terms And Conditions" component={TermsAndConditions} />
         <Stack.Screen name="Report" component={Report} />

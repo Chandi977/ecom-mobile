@@ -36,6 +36,11 @@ export const API_ENDPOINTS = {
     NOTIFY_PRODUCT: 'notify/create',
   },
 
+  COMBO_ORDERS: {
+    GET_ALL_COMBOS: 'combo-order/get',
+    GET_COMBO_BY_SLUG: 'combo-order/slug/', // append `${slug}`
+  },
+
   CATEGORIES: {
     GET_ALL_CATEGORIES: 'category/all',
   },
