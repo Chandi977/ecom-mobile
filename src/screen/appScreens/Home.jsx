@@ -1,111 +1,152 @@
 import {
+  ImageBackground,
+  Linking,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
-  Linking,
 } from 'react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import DeviceInfo from 'react-native-device-info';
 import VersionCheck from 'react-native-version-check';
+import Feather from 'react-native-vector-icons/Feather';
 import Colors from '../../utils/Colors';
 import BottomNavigationHeader from '../../components/General/BottomNavigationHeader';
 import HomeSearch from '../../components/General/HomeSearch';
-import { brandData } from '../../assets/data/brands';
 import ApiService from '../../service/APIService';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import LoginPopup from '../../components/General/loginPopup';
 import {
   moderateScale,
   moderateVerticalScale,
-  scale,
   textScale,
 } from '../../utils/responsiveSize';
 import FontFamily from '../../utils/FontFamily';
-import _ from 'lodash';
-import PopularProducts from '../../components/Home/popularProducts';
-import { ImagePath } from '../../utils/ImagePath';
-import FastImage from 'react-native-fast-image';
-import LoaderModal from '../../components/General/LoaderModal';
-import debounce from 'lodash.debounce';
-import TestimonialContainer from '../../components/Home/TestimonialContainer';
-import YtVideo from '../../components/Home/YtVideo';
-import Description from '../../components/Home/Description';
-import CustomButton from '../../components/General/CustomButton';
-import CustomPackagingButton from '../../components/Home/CustomPackagingButton';
 import HomePopularProduct from '../../components/Home/HomePopularProduct';
 import { ProductRowSkeleton } from '../../components/General/Skeleton';
 import WrapperContainer from '../../utils/WrapperContainer';
-import StorageService from '../../utils/storageService';
-import { parseStoredUser } from '../../utils/HelperFunction';
-import {
-  buildEntityNameById,
-  getEntityIdByName,
-  getProductBrandId,
-  getProductBrandName,
-} from '../../utils/productFields';
+import { ImagePath } from '../../utils/ImagePath';
+import { buildEntityNameById } from '../../utils/productFields';
+
+const CATEGORY_META = [
+  {
+    name: 'Corrugated boxes',
+    match: ['corrugated'],
+    image: ImagePath.categoryCorrugatedBoxes,
+    tone: '#F7EFE4',
+  },
+  {
+    name: 'Paper bags',
+    match: ['paper bag'],
+    image: ImagePath.categoryPaperBags,
+    tone: '#EAF5EE',
+  },
+  {
+    name: 'Poly bags & mailers',
+    match: ['poly'],
+    image: ImagePath.categoryPolyBags,
+    tone: '#EAF2FA',
+  },
+  {
+    name: 'Tapes & sealing',
+    match: ['tape', 'pack pro'],
+    image: ImagePath.categoryBoppTapes,
+    tone: '#FFF0E8',
+  },
+  {
+    name: 'Labels & finishing',
+    match: ['label', 'rollabel'],
+    image: ImagePath.categoryChromoLabels,
+    tone: '#FFF7D9',
+  },
+  {
+    name: 'Carry bags',
+    match: ['carry bag'],
+    image: ImagePath.categoryCarryBags,
+    tone: '#E9F8FB',
+  },
+  {
+    name: 'Food wrapping',
+    match: ['food', 'wrap'],
+    image: ImagePath.categoryWrappingPapers,
+    tone: '#FDECEF',
+  },
+];
+
+const FILTERS = [
+  { key: 'all', label: 'All products', match: [] },
+  { key: 'corrugated', label: 'Corrugated boxes', match: ['corrugated'] },
+  { key: 'paper', label: 'Paper bags', match: ['paper bag'] },
+  { key: 'poly', label: 'Poly mailers', match: ['poly'] },
+  { key: 'tapes', label: 'Tapes & labels', match: ['tape', 'label', 'rollabel'] },
+  { key: 'food', label: 'Food packaging', match: ['food', 'wrap'] },
+];
+
+const PROCESS_STEPS = [
+  {
+    title: 'Choose the right pack',
+    text: 'Browse boxes, bags, labels and tapes by daily fulfilment need.',
+  },
+  {
+    title: 'Confirm quantity',
+    text: 'Clear pack sizes and price tiers help teams buy without guesswork.',
+  },
+  {
+    title: 'Checkout securely',
+    text: 'Cart, delivery details and payment stay inside the mobile flow.',
+  },
+  {
+    title: 'Ship pan-India',
+    text: 'Manufacturer-direct supply keeps orders moving across India.',
+  },
+];
+
+const getCategoryText = product => {
+  const category = product?.category;
+  const subCategory = product?.sub_category || product?.subCategory;
+  return [
+    typeof category === 'string' ? category : category?.name,
+    typeof subCategory === 'string' ? subCategory : subCategory?.name,
+    product?.name,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+};
 
 const Home = () => {
   const navigation = useNavigation();
   const [allProducts, setAllProducts] = useState([]);
-  const [selectedBrand, setSelectedBrand] = useState(null);
-  const [filteredProducts, setFilteredProducts] = useState([]);
-  const [wishlist, setWishlist] = useState([]);
-  const [showLoginPopup, setShowLoginPopup] = useState(false);
-  const [navigating, setNavigating] = useState(false);
-  const [cartValueChanged, setCartValueChanged] = useState(0);
-  const [wishListValueChanged, setWishListValueChanged] = useState(0);
-  const placeholderImage = 'https://prempackaging.com/img/logo.png';
   const [searchText, setSearchText] = useState('');
   const [searchResults, setSearchResults] = useState([]);
-  const [dealProduct, setDealProduct] = useState([]);
   const [updateStoreUrl, setUpdateStoreUrl] = useState(null);
   const [brandNameById, setBrandNameById] = useState({});
-  const [brandList, setBrandList] = useState([]);
   const [loadingProducts, setLoadingProducts] = useState(true);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [cartValueChanged, setCartValueChanged] = useState(0);
+  const [wishListValueChanged, setWishListValueChanged] = useState(0);
+  const searchTimer = useRef(null);
 
   const searchProducts = useCallback(async query => {
-    const data = { search: query };
     try {
-      const response = await ApiService.HOME_PRODUCTS_SEARCH(data);
-      console.log(response, 'Line 23');
+      const response = await ApiService.HOME_PRODUCTS_SEARCH({ search: query });
       setSearchResults(response?.data || []);
     } catch (error) {
-      console.error(error);
+      console.log('Search failed', error?.message);
     }
   }, []);
 
-  const handleSearch = useMemo(
-    () =>
-      debounce(text => {
-        if (text.length > 0) {
-          searchProducts(text);
-        } else {
-          setSearchResults([]);
-        }
-      }, 500),
-    [searchProducts],
-  );
-
   useEffect(() => {
-    handleSearch(searchText);
-    return () => handleSearch.cancel();
-  }, [searchText, handleSearch]);
-
-  const handleSelectProduct = product => {
-    navigation.navigate('ProductDetails', { item: product });
-    setSearchText('');
-    setSearchResults([]);
-  };
-
-  const getDropdownText = item => {
-    const brandName =
-      getProductBrandName(item, brandNameById) || 'Unknown Brand';
-    return `${brandName} - ${item.name} - ${item.model}`;
-  };
-
-  const filteredResults = searchResults;
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!searchText.trim()) {
+      setSearchResults([]);
+      return undefined;
+    }
+    searchTimer.current = setTimeout(() => searchProducts(searchText), 450);
+    return () => {
+      if (searchTimer.current) clearTimeout(searchTimer.current);
+    };
+  }, [searchProducts, searchText]);
 
   useEffect(() => {
     getAllProducts();
@@ -117,19 +158,10 @@ const Home = () => {
       const res = await VersionCheck.needUpdate({ currentVersion });
       if (res?.isNeeded) setUpdateStoreUrl(res?.storeUrl);
     };
-    checkHomeUpdate();
+    checkHomeUpdate().catch(error => {
+      console.log('Version check failed:', error?.message);
+    });
   }, []);
-
-  const loadWishlist = async () => {
-    try {
-      const storedWishlist = await StorageService.getItem('wishlist');
-      if (storedWishlist) {
-        setWishlist(parseStoredUser(storedWishlist));
-      }
-    } catch (error) {
-      console.log('Error loading wishlist', error);
-    }
-  };
 
   useFocusEffect(
     useCallback(() => {
@@ -140,65 +172,101 @@ const Home = () => {
     }, []),
   );
 
-  useFocusEffect(
-    useCallback(() => {
-      loadWishlist();
-    }, []),
-  );
-
   const getAllProducts = async () => {
+    setLoadingProducts(true);
     try {
-      const [response, brandResponse] = await Promise.all([
+      const [productResponse, brandResponse] = await Promise.all([
         ApiService.GET_ALL_PRODUCTS(),
         ApiService.GET_ALL_BRANDS().catch(error => {
           console.log('Error fetching Brands', error?.message);
           return null;
         }),
       ]);
+
       if (brandResponse?.data) {
         setBrandNameById(buildEntityNameById(brandResponse.data));
-        setBrandList(brandResponse.data);
       }
-      if (response && response?.data) {
-        const filteredPopularProducts = response.data.filter(
-          item => item.top_product === true,
-        );
-        const dealProducts = response.data.filter(
-          item => item?.deal_product === true,
-        );
-        setDealProduct(dealProducts);
-        setAllProducts(response?.data);
-        setFilteredProducts(filteredPopularProducts);
+      if (productResponse?.data) {
+        setAllProducts(productResponse.data);
       }
-    } catch (e) {
-      console.log('Error fetching Products', e?.message);
+    } catch (error) {
+      console.log('Error fetching home catalog', error?.message);
     } finally {
       setLoadingProducts(false);
     }
   };
 
-  const handleBrandCLicked = async brand => {
-    setNavigating(true);
-    try {
-      // Resolve the real brand id from /brand/all by name (no hardcoded ids).
-      const resolvedBrandId = getEntityIdByName(brandList, brand.name);
-      setTimeout(async () => {
-        navigation.navigate('CategoryDetailsTwo', {
-          categories: { ...brand, brandId: resolvedBrandId },
-          data: allProducts.filter(
-            item => getProductBrandId(item) === resolvedBrandId,
-          ),
-          option: 'brand',
-          serverFilter: resolvedBrandId
-            ? { brand: resolvedBrandId }
-            : undefined,
-        });
-        setNavigating(false);
-      }, 1000);
-    } catch (error) {
-      console.log('Error navigating to brand', error);
-      setNavigating(false);
-    }
+  const getDropdownText = item => {
+    const brand =
+      typeof item?.brand === 'object'
+        ? item?.brand?.name
+        : brandNameById[item?.brand] || 'Prem Packaging';
+    return `${brand} - ${item?.name || ''} - ${item?.model || ''}`;
+  };
+
+  const handleSelectProduct = product => {
+    navigation.navigate('ProductDetails', { item: product });
+    setSearchText('');
+    setSearchResults([]);
+  };
+
+  const categoryCards = useMemo(() => {
+    const counts = new Map();
+    allProducts.forEach(product => {
+      const text = getCategoryText(product);
+      CATEGORY_META.forEach(category => {
+        if (category.match.some(keyword => text.includes(keyword))) {
+          counts.set(category.name, (counts.get(category.name) || 0) + 1);
+        }
+      });
+    });
+    return CATEGORY_META.map(category => ({
+      ...category,
+      count: counts.get(category.name) || 0,
+    }));
+  }, [allProducts]);
+
+  const shelfProducts = useMemo(() => {
+    const scored = [...allProducts].map(product => {
+      let rank = 0;
+      if (product?.deal_product) rank -= 3;
+      if (product?.top_product) rank -= 2;
+      return { product, rank };
+    });
+    scored.sort((a, b) => a.rank - b.rank);
+    return scored.map(entry => entry.product);
+  }, [allProducts]);
+
+  const visibleProducts = useMemo(() => {
+    const filter = FILTERS.find(item => item.key === activeFilter);
+    const keywords = filter?.match || [];
+    const pool = keywords.length
+      ? shelfProducts.filter(product => {
+          const text = getCategoryText(product);
+          return keywords.some(keyword => text.includes(keyword));
+        })
+      : shelfProducts;
+    return pool.slice(0, 12);
+  }, [activeFilter, shelfProducts]);
+
+  const handleCategoryPress = category => {
+    const data = allProducts.filter(product => {
+      const text = getCategoryText(product);
+      return category.match.some(keyword => text.includes(keyword));
+    });
+    navigation.navigate('CategoryDetailsTwo', {
+      categories: { name: category.name },
+      data,
+      option: 'cat',
+    });
+  };
+
+  const handleAllProducts = () => {
+    navigation.navigate('CategoryDetailsTwo', {
+      categories: { name: 'All products' },
+      data: allProducts,
+      option: 'cat',
+    });
   };
 
   return (
@@ -208,17 +276,12 @@ const Home = () => {
           cartValueChanged={cartValueChanged}
           wishlistValueChanged={wishListValueChanged}
         />
-        <View
-          style={{
-            backgroundColor: Colors.white,
-            paddingBottom: moderateVerticalScale(10),
-          }}
-        >
+        <View style={styles.searchWrap}>
           <HomeSearch
-            placeholder={'Search for Products'}
+            placeholder="Search for Products"
             searchText={searchText}
-            setSearchText={text => setSearchText(text)}
-            filteredResults={filteredResults}
+            setSearchText={setSearchText}
+            filteredResults={searchResults}
             getDropdownText={getDropdownText}
             handleSelectProduct={handleSelectProduct}
           />
@@ -231,255 +294,390 @@ const Home = () => {
             onPress={() => Linking.openURL(updateStoreUrl)}
           >
             <Text style={styles.updateBannerText}>
-              New update available! Tap to update the app.
+              New update available. Tap to update the app.
             </Text>
           </TouchableOpacity>
         )}
 
         <ScrollView
-          style={{ flex: 1 }}
-          contentContainerStyle={{ paddingBottom: moderateVerticalScale(80) }}
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <>
-            {/* Brand */}
-            <View
-              style={[
-                styles.shopByBrand,
-                {
-                  marginTop: moderateVerticalScale(15),
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                },
-              ]}
-            >
-              <View style={styles.brandView}>
-                <Text style={styles.brandText}>
-                  WE ARE AUTHORIZED VENDOR FOR
-                </Text>
-                <ScrollView
-                  showsHorizontalScrollIndicator={false}
-                  horizontal={true}
-                  style={styles.brandHolder}
-                  contentContainerStyle={styles.brandContentContainer}
+          <ImageBackground
+            source={ImagePath.heroPackaging}
+            style={styles.hero}
+            imageStyle={styles.heroImage}
+          >
+            <View style={styles.heroOverlay} />
+            <View style={styles.heroCopy}>
+              <Text style={styles.eyebrow}>Made to pack. Ready to send.</Text>
+              <Text style={styles.heroTitle}>
+                Better packaging starts right here.
+              </Text>
+              <Text style={styles.heroSub}>
+                Shop boxes, bags, mailers, tapes and labels directly from the
+                manufacturer.
+              </Text>
+              <View style={styles.heroActions}>
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  style={styles.primaryButton}
+                  onPress={handleAllProducts}
                 >
-                  {brandData.map(brand => (
-                    <TouchableOpacity
-                      key={brand.id}
-                      style={[
-                        styles.imageHolder,
-                        {
-                          borderColor:
-                            selectedBrand?.id === brand.id
-                              ? Colors.brandColor
-                              : Colors.red,
-                        },
-                      ]}
-                      onPress={() => handleBrandCLicked(brand)}
-                    >
-                      <FastImage
-                        style={styles.imageStyle}
-                        source={{
-                          uri: brand.image,
-                          priority: FastImage.priority.high,
-                          cache: FastImage.cacheControl.web,
-                        }}
-                        resizeMode={FastImage.resizeMode.contain}
-                      />
-                    </TouchableOpacity>
-                  ))}
-                </ScrollView>
+                  <Text style={styles.primaryButtonText}>Shop bestsellers</Text>
+                  <Feather name="arrow-right" size={moderateScale(17)} color={Colors.white} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  activeOpacity={0.86}
+                  style={styles.secondaryButton}
+                  onPress={() => setActiveFilter('all')}
+                >
+                  <Text style={styles.secondaryButtonText}>Explore categories</Text>
+                </TouchableOpacity>
+              </View>
+              <View style={styles.heroProof}>
+                {['GST invoice', 'Secure checkout', 'Pan-India delivery'].map(item => (
+                  <View key={item} style={styles.proofPill}>
+                    <Feather name="check" size={moderateScale(13)} color={Colors.red} />
+                    <Text style={styles.proofText}>{item}</Text>
+                  </View>
+                ))}
               </View>
             </View>
-            <View
-              style={{
-                backgroundColor: Colors.back,
-                marginVertical: moderateVerticalScale(10),
-              }}
-            >
-              <CustomPackagingButton />
+            <View style={styles.heroNote}>
+              <Text style={styles.heroNoteLabel}>Authorised packaging for</Text>
+              <Text style={styles.heroNoteBrand}>amazon</Text>
+              <Text style={styles.heroNoteBrand}>Flipkart</Text>
+              <Text style={styles.heroNoteBrand}>AJIO</Text>
             </View>
-            {/* Popular Products */}
-            <View style={styles.popularProductHolder}>
-              <View style={styles.brandView}>
-                <Text style={styles.brandText}>SHOP FROM TOP PRODUCTS</Text>
-                <View style={styles.horizontalListWrapper}>
-                  {loadingProducts ? (
-                    <ProductRowSkeleton />
-                  ) : (
-                    <HomePopularProduct
-                      data={filteredProducts}
-                      brandNameById={brandNameById}
-                      cartValueChanged={cartValueChanged}
-                      wishlistValueChanged={wishListValueChanged}
-                      setCartValueChanged={setCartValueChanged}
-                      setWishListValueChanged={setWishListValueChanged}
-                    />
-                  )}
-                </View>
-              </View>
-            </View>
-            <View style={styles.popularProductHolder}>
-              <View style={styles.brandView}>
-                <Text style={styles.brandText}>
-                  BEST DEALS ON FEATURED PRODUCTS
-                </Text>
-                <View style={styles.horizontalListWrapper}>
-                  {loadingProducts ? (
-                    <ProductRowSkeleton />
-                  ) : (
-                    <HomePopularProduct
-                      data={dealProduct}
-                      brandNameById={brandNameById}
-                      cartValueChanged={cartValueChanged}
-                      wishlistValueChanged={wishListValueChanged}
-                      setCartValueChanged={setCartValueChanged}
-                      setWishListValueChanged={setWishListValueChanged}
-                    />
-                  )}
-                </View>
-              </View>
-            </View>
-            <Description />
-            <YtVideo />
-            <TestimonialContainer />
-          </>
-        </ScrollView>
+          </ImageBackground>
 
-        {showLoginPopup && (
-          <LoginPopup
-            showLoginPopup={showLoginPopup}
-            setShowLoginPopup={setShowLoginPopup}
+          <SectionHeader
+            eyebrow="Find your everyday essentials"
+            title="Shop top categories"
+            action="View everything"
+            onPress={handleAllProducts}
           />
-        )}
-        <LoaderModal visible={navigating} message="Loading, please wait..." />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoryRow}
+          >
+            {categoryCards.map(category => (
+              <TouchableOpacity
+                key={category.name}
+                activeOpacity={0.86}
+                style={[styles.categoryCard, { backgroundColor: category.tone }]}
+                onPress={() => handleCategoryPress(category)}
+              >
+                <Text style={styles.categoryCount}>
+                  {category.count || 'Shop'} products
+                </Text>
+                <Text style={styles.categoryName}>{category.name}</Text>
+                <View style={styles.categoryImageWrap}>
+                  <ImageBackground
+                    source={category.image}
+                    resizeMode="contain"
+                    style={styles.categoryImage}
+                  />
+                </View>
+                <View style={styles.categoryArrow}>
+                  <Feather name="arrow-right" size={moderateScale(16)} color={Colors.brandColor} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+
+          <SectionHeader
+            eyebrow="Customer favourites"
+            title="Packaging people keep coming back for"
+            subtitle={
+              activeFilter === 'all'
+                ? 'Useful sizes, honest prices and no catalogue confusion.'
+                : `Showing ${visibleProducts.length} filtered products`
+            }
+          />
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filterRow}
+          >
+            {FILTERS.map(filter => {
+              const active = activeFilter === filter.key;
+              return (
+                <TouchableOpacity
+                  key={filter.key}
+                  activeOpacity={0.82}
+                  style={[styles.filterChip, active && styles.filterChipActive]}
+                  onPress={() => setActiveFilter(filter.key)}
+                >
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      active && styles.filterChipTextActive,
+                    ]}
+                  >
+                    {filter.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+
+          <View style={styles.productShelf}>
+            {loadingProducts ? (
+              <ProductRowSkeleton />
+            ) : (
+              <HomePopularProduct
+                data={visibleProducts}
+                brandNameById={brandNameById}
+                cartValueChanged={cartValueChanged}
+                wishlistValueChanged={wishListValueChanged}
+                setCartValueChanged={setCartValueChanged}
+                setWishListValueChanged={setWishListValueChanged}
+              />
+            )}
+          </View>
+
+          <View style={styles.processSection}>
+            <Text style={styles.eyebrow}>How orders move</Text>
+            <Text style={styles.sectionTitle}>From product choice to dispatch</Text>
+            {PROCESS_STEPS.map((step, index) => (
+              <View key={step.title} style={styles.processStep}>
+                <Text style={styles.processNumber}>
+                  {String(index + 1).padStart(2, '0')}
+                </Text>
+                <View style={styles.processBody}>
+                  <Text style={styles.processTitle}>{step.title}</Text>
+                  <Text style={styles.processText}>{step.text}</Text>
+                </View>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.customSection}>
+            <ImageBackground
+              source={ImagePath.customBox}
+              style={styles.customVisual}
+              imageStyle={styles.customImage}
+            >
+              <View style={styles.customFloat}>
+                <Text style={styles.customFloatTitle}>Made for your brand</Text>
+                <Text style={styles.customFloatText}>Size / Print / Material</Text>
+              </View>
+            </ImageBackground>
+            <View style={styles.customCopy}>
+              <Text style={styles.eyebrow}>Make it unmistakably yours</Text>
+              <Text style={styles.sectionTitle}>
+                Need packaging with your name on it?
+              </Text>
+              <Text style={styles.sectionBody}>
+                From box size to print, finish and material, our packaging team
+                can help turn your idea into a production-ready pack.
+              </Text>
+              {[
+                'Expert structural guidance',
+                'Multi-format packaging support',
+                'Clear quotation and sampling',
+              ].map(item => (
+                <View key={item} style={styles.checkRow}>
+                  <Feather name="check" size={moderateScale(16)} color={Colors.red} />
+                  <Text style={styles.checkText}>{item}</Text>
+                </View>
+              ))}
+              <TouchableOpacity
+                activeOpacity={0.86}
+                style={[styles.primaryButton, styles.customButton]}
+                onPress={() => navigation.navigate('Custom Form')}
+              >
+                <Text style={styles.primaryButtonText}>Start a custom project</Text>
+                <Feather name="arrow-right" size={moderateScale(17)} color={Colors.white} />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          <View style={styles.testimonialSection}>
+            <Text style={styles.eyebrow}>Loved by growing brands</Text>
+            <Text style={styles.quote}>
+              "Prem's innovative e-commerce packaging has enhanced both the
+              durability and presentation of our products."
+            </Text>
+            <Text style={styles.quoteBy}>Fruitri</Text>
+            <Text style={styles.quoteRole}>Long-term packaging partner</Text>
+            <View style={styles.proofBlock}>
+              <Text style={styles.proofTitle}>Since 1977</Text>
+              <Text style={styles.proofBody}>
+                Decades of manufacturing knowledge behind every order.
+              </Text>
+            </View>
+            <View style={styles.proofBlock}>
+              <Text style={styles.proofTitle}>One direct source</Text>
+              <Text style={styles.proofBody}>
+                Boxes, bags, labels, tapes and more under one roof.
+              </Text>
+            </View>
+          </View>
+        </ScrollView>
       </View>
     </WrapperContainer>
   );
 };
+
+const SectionHeader = ({ eyebrow, title, subtitle, action, onPress }) => (
+  <View style={styles.sectionHeader}>
+    <View style={styles.sectionHeaderCopy}>
+      <Text style={styles.eyebrow}>{eyebrow}</Text>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {!!subtitle && <Text style={styles.sectionSubtitle}>{subtitle}</Text>}
+    </View>
+    {!!action && (
+      <TouchableOpacity activeOpacity={0.8} style={styles.sectionAction} onPress={onPress}>
+        <Text style={styles.sectionActionText}>{action}</Text>
+        <Feather name="arrow-right" size={moderateScale(15)} color={Colors.brandColor} />
+      </TouchableOpacity>
+    )}
+  </View>
+);
+
 export default Home;
 
 const styles = StyleSheet.create({
   main: {
     flex: 1,
-    backgroundColor: Colors.back,
+    backgroundColor: '#FBFBFA',
   },
-  shopByBrand: {
-    padding: moderateScale(10),
-    backgroundColor: Colors.back,
+  searchWrap: {
+    backgroundColor: Colors.white,
+    paddingBottom: moderateVerticalScale(10),
   },
-  brandHolder: {
-    marginVertical: moderateVerticalScale(5),
+  scroll: {
+    flex: 1,
   },
-  brandContentContainer: {
-    paddingHorizontal: moderateScale(16),
-    paddingVertical: moderateVerticalScale(8),
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexGrow: 1,
+  scrollContent: {
+    paddingBottom: moderateVerticalScale(96),
   },
-  brandView: {
-    width: '100%',
-    alignSelf: 'center',
+  hero: {
+    minHeight: moderateVerticalScale(470),
+    justifyContent: 'space-between',
+    padding: moderateScale(20),
+    overflow: 'hidden',
   },
-  brandText: {
+  heroImage: {
+    opacity: 0.88,
+  },
+  heroOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255,255,255,0.54)',
+  },
+  heroCopy: {
+    position: 'relative',
+    zIndex: 1,
+    paddingTop: moderateVerticalScale(18),
+  },
+  eyebrow: {
+    color: Colors.red,
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(11),
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: moderateVerticalScale(8),
+  },
+  heroTitle: {
+    color: '#0B1D3E',
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(34),
+    lineHeight: textScale(40),
+    maxWidth: moderateScale(310),
+  },
+  heroSub: {
+    color: '#475467',
+    fontFamily: FontFamily.Montserrat_Medium,
     fontSize: textScale(14),
-    color: Colors.brandColor,
-    fontFamily: FontFamily.Montserrat_SemiBold,
-    padding: moderateScale(10),
-    textAlign: 'center',
-    // fontWeight: "700",
+    lineHeight: textScale(21),
+    marginTop: moderateVerticalScale(12),
+    maxWidth: moderateScale(310),
   },
-  imageHolder: {
-    borderWidth: moderateScale(1),
-    marginHorizontal: moderateScale(6),
+  heroActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: moderateScale(10),
+    marginTop: moderateVerticalScale(18),
+  },
+  primaryButton: {
+    minHeight: moderateVerticalScale(46),
     borderRadius: moderateScale(8),
-    borderColor: Colors.red,
-    backgroundColor: Colors.white,
-    overflow: 'hidden',
-    width: moderateScale(100),
-    height: moderateScale(55),
-    padding: moderateScale(6),
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  imageStyle: {
-    width: '80%',
-    height: '80%',
-    backgroundColor: Colors.white,
-    alignSelf: 'center',
-  },
-  imageHolder2: {
-    width: moderateScale(120),
-    marginHorizontal: moderateScale(5),
-    alignItems: 'center',
-    gap: moderateScale(5),
-  },
-  imgHolder: {
-    borderRadius: moderateScale(250),
-    overflow: 'hidden',
-    backgroundColor: Colors.white,
+    backgroundColor: Colors.brandColor,
+    paddingHorizontal: moderateScale(16),
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    height: moderateScale(110),
-    width: moderateScale(110),
+    gap: moderateScale(8),
   },
-  imageStyle2: {
-    height: moderateScale(90),
-    width: moderateScale(90),
-    borderRadius: moderateScale(50),
-  },
-  categoriesText: {
-    fontSize: textScale(12),
+  primaryButtonText: {
+    color: Colors.white,
     fontFamily: FontFamily.Montserrat_Bold,
-    color: Colors.black,
-    lineHeight: scale(20),
-    textAlign: 'center',
+    fontSize: textScale(13),
   },
-  popularProductHolder: {
-    backgroundColor: Colors.back,
-    alignSelf: 'center',
-    width: '100%',
-    paddingVertical: moderateScale(10),
+  secondaryButton: {
+    minHeight: moderateVerticalScale(46),
+    borderRadius: moderateScale(8),
+    borderWidth: 1,
+    borderColor: 'rgba(20,37,76,0.22)',
+    paddingHorizontal: moderateScale(15),
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.78)',
   },
-  productHolder: {
+  secondaryButtonText: {
+    color: Colors.brandColor,
+    fontFamily: FontFamily.Montserrat_Bold,
+    fontSize: textScale(13),
+  },
+  heroProof: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: moderateScale(15),
-    alignSelf: 'center',
-    // marginTop: moderateVerticalScale(10),
-    justifyContent: 'center',
+    gap: moderateScale(8),
+    marginTop: moderateVerticalScale(16),
   },
-  horizontalListWrapper: {
-    width: '100%',
-    overflow: 'visible',
-  },
-  item: {
-    padding: moderateScale(10),
-    backgroundColor: Colors.white,
-    elevation: moderateScale(10),
+  proofPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: moderateScale(5),
-    width: '45%',
+    backgroundColor: 'rgba(255,255,255,0.82)',
+    borderRadius: moderateScale(999),
+    paddingHorizontal: moderateScale(10),
+    paddingVertical: moderateVerticalScale(6),
   },
-  image: {
-    width: '95%',
-    height: moderateScale(140),
-  },
-  loaderText: {
-    fontSize: textScale(16),
-    color: Colors.brandColor,
-    textAlign: 'center',
+  proofText: {
+    color: '#344054',
     fontFamily: FontFamily.Montserrat_SemiBold,
+    fontSize: textScale(11),
   },
-  loaderContainer: {
-    gap: moderateScale(30),
-    width: '90%',
-    alignSelf: 'center',
-    padding: moderateScale(15),
-    borderRadius: moderateScale(10),
-    borderColor: Colors.brandColor,
-    backgroundColor: Colors.back,
-    paddingTop: moderateVerticalScale(30),
+  heroNote: {
+    position: 'relative',
+    zIndex: 1,
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(255,255,255,0.88)',
+    borderRadius: moderateScale(12),
+    padding: moderateScale(12),
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: moderateScale(8),
+  },
+  heroNoteLabel: {
+    width: '100%',
+    color: '#667085',
+    fontFamily: FontFamily.Montserrat_Medium,
+    fontSize: textScale(10),
+    textTransform: 'uppercase',
+  },
+  heroNoteBrand: {
+    color: Colors.brandColor,
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(14),
   },
   updateBanner: {
     backgroundColor: Colors.brandColor,
@@ -491,5 +689,249 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: textScale(12),
     fontFamily: FontFamily.Montserrat_SemiBold,
+  },
+  sectionHeader: {
+    paddingHorizontal: moderateScale(20),
+    paddingTop: moderateVerticalScale(28),
+    paddingBottom: moderateVerticalScale(8),
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: moderateScale(12),
+  },
+  sectionHeaderCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  sectionTitle: {
+    color: '#0B1D3E',
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(22),
+    lineHeight: textScale(28),
+  },
+  sectionSubtitle: {
+    color: '#667085',
+    fontFamily: FontFamily.Montserrat_Medium,
+    fontSize: textScale(12),
+    lineHeight: textScale(18),
+    marginTop: moderateVerticalScale(6),
+  },
+  sectionAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(4),
+    paddingTop: moderateVerticalScale(24),
+  },
+  sectionActionText: {
+    color: Colors.brandColor,
+    fontFamily: FontFamily.Montserrat_Bold,
+    fontSize: textScale(11),
+  },
+  categoryRow: {
+    paddingLeft: moderateScale(20),
+    paddingRight: moderateScale(8),
+    paddingVertical: moderateVerticalScale(10),
+  },
+  categoryCard: {
+    width: moderateScale(168),
+    minHeight: moderateVerticalScale(202),
+    borderRadius: moderateScale(12),
+    marginRight: moderateScale(12),
+    padding: moderateScale(14),
+    overflow: 'hidden',
+  },
+  categoryCount: {
+    color: '#667085',
+    fontFamily: FontFamily.Montserrat_Bold,
+    fontSize: textScale(10),
+    textTransform: 'uppercase',
+  },
+  categoryName: {
+    color: '#0B1D3E',
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(17),
+    lineHeight: textScale(22),
+    marginTop: moderateVerticalScale(7),
+  },
+  categoryImageWrap: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  categoryImage: {
+    width: '100%',
+    height: moderateVerticalScale(98),
+  },
+  categoryArrow: {
+    position: 'absolute',
+    right: moderateScale(12),
+    bottom: moderateScale(12),
+    width: moderateScale(32),
+    height: moderateScale(32),
+    borderRadius: moderateScale(16),
+    backgroundColor: Colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterRow: {
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateVerticalScale(10),
+    gap: moderateScale(8),
+  },
+  filterChip: {
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    backgroundColor: Colors.white,
+    borderRadius: moderateScale(999),
+    paddingHorizontal: moderateScale(14),
+    paddingVertical: moderateVerticalScale(9),
+  },
+  filterChipActive: {
+    borderColor: Colors.brandColor,
+    backgroundColor: Colors.brandColor,
+  },
+  filterChipText: {
+    color: '#344054',
+    fontFamily: FontFamily.Montserrat_Bold,
+    fontSize: textScale(11),
+  },
+  filterChipTextActive: {
+    color: Colors.white,
+  },
+  productShelf: {
+    minHeight: moderateVerticalScale(220),
+  },
+  processSection: {
+    marginTop: moderateVerticalScale(28),
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateVerticalScale(28),
+    backgroundColor: '#F7F3EB',
+  },
+  processStep: {
+    flexDirection: 'row',
+    paddingVertical: moderateVerticalScale(15),
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(20,37,76,0.12)',
+    gap: moderateScale(14),
+  },
+  processNumber: {
+    color: Colors.red,
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(18),
+    minWidth: moderateScale(34),
+  },
+  processBody: {
+    flex: 1,
+    minWidth: 0,
+  },
+  processTitle: {
+    color: '#0B1D3E',
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(15),
+  },
+  processText: {
+    color: '#667085',
+    fontFamily: FontFamily.Montserrat_Medium,
+    fontSize: textScale(12),
+    lineHeight: textScale(18),
+    marginTop: moderateVerticalScale(4),
+  },
+  customSection: {
+    paddingHorizontal: moderateScale(20),
+    paddingVertical: moderateVerticalScale(30),
+    gap: moderateVerticalScale(18),
+  },
+  customVisual: {
+    height: moderateVerticalScale(250),
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+    borderRadius: moderateScale(18),
+  },
+  customImage: {
+    borderRadius: moderateScale(18),
+  },
+  customFloat: {
+    alignSelf: 'flex-start',
+    margin: moderateScale(14),
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    borderRadius: moderateScale(10),
+    paddingHorizontal: moderateScale(12),
+    paddingVertical: moderateVerticalScale(9),
+  },
+  customFloatTitle: {
+    color: Colors.brandColor,
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(12),
+  },
+  customFloatText: {
+    color: '#667085',
+    fontFamily: FontFamily.Montserrat_Medium,
+    fontSize: textScale(10),
+    marginTop: moderateVerticalScale(2),
+  },
+  customCopy: {
+    gap: moderateVerticalScale(10),
+  },
+  sectionBody: {
+    color: '#667085',
+    fontFamily: FontFamily.Montserrat_Medium,
+    fontSize: textScale(13),
+    lineHeight: textScale(20),
+  },
+  checkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: moderateScale(8),
+  },
+  checkText: {
+    color: '#344054',
+    fontFamily: FontFamily.Montserrat_SemiBold,
+    fontSize: textScale(12),
+  },
+  customButton: {
+    alignSelf: 'flex-start',
+    marginTop: moderateVerticalScale(6),
+  },
+  testimonialSection: {
+    marginHorizontal: moderateScale(20),
+    paddingTop: moderateVerticalScale(24),
+    paddingBottom: moderateVerticalScale(10),
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  quote: {
+    color: '#0B1D3E',
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(20),
+    lineHeight: textScale(28),
+  },
+  quoteBy: {
+    color: Colors.brandColor,
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(13),
+    marginTop: moderateVerticalScale(14),
+  },
+  quoteRole: {
+    color: '#667085',
+    fontFamily: FontFamily.Montserrat_Medium,
+    fontSize: textScale(11),
+    marginTop: moderateVerticalScale(3),
+  },
+  proofBlock: {
+    paddingVertical: moderateVerticalScale(14),
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  proofTitle: {
+    color: '#0B1D3E',
+    fontFamily: FontFamily.Montserrat_ExtraBold,
+    fontSize: textScale(14),
+  },
+  proofBody: {
+    color: '#667085',
+    fontFamily: FontFamily.Montserrat_Medium,
+    fontSize: textScale(12),
+    lineHeight: textScale(18),
+    marginTop: moderateVerticalScale(4),
   },
 });
