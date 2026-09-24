@@ -13,7 +13,7 @@ const ProductImage = ({
   uri,
   style,
   resizeMode = FastImage.resizeMode.contain,
-  priority = FastImage.priority.high,
+  priority = FastImage.priority.normal,
   onLoadStart,
   onLoadEnd,
   ...rest

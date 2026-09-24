@@ -2,6 +2,16 @@ import axios from 'axios';
 import StorageService from '../utils/storageService';
 import { BASE_URL, FALLBACK_BASE_URL, API_ENDPOINTS } from '../service/APIConfig';
 
+let cachedAuthToken = null;
+
+const setAuthToken = token => {
+  cachedAuthToken = token;
+};
+
+const clearAuthToken = () => {
+  cachedAuthToken = null;
+};
+
 const apiClient = axios.create({
   baseURL: BASE_URL,
   timeout: 30000,
@@ -36,9 +46,11 @@ const canRetryOnFallbackBackend = error => {
 
 apiClient.interceptors.request.use(
   async config => {
-    const token = await StorageService.getItem('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (!cachedAuthToken) {
+      cachedAuthToken = await StorageService.getItem('authToken');
+    }
+    if (cachedAuthToken) {
+      config.headers.Authorization = `Bearer ${cachedAuthToken}`;
     }
 
     if (!config.headers['Content-Type']) {
@@ -80,6 +92,7 @@ apiClient.interceptors.response.use(
     }
 
     if (error.response?.status === 401) {
+      cachedAuthToken = null;
       await StorageService.removeItem('authToken');
       await StorageService.removeItem('refreshToken');
       await StorageService.removeItem('user_data');
@@ -449,6 +462,9 @@ const ApiService = {
   _handleError(error) {
     return error;
   },
+
+  setAuthToken,
+  clearAuthToken,
 };
 
 export default ApiService;

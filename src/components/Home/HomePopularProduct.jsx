@@ -88,7 +88,7 @@ const HomePopularProduct = ({
         new Set((cart || []).map(getLineProductId).filter(Boolean)),
       );
     } catch (error) {
-      console.log('Error fetching cart products', error?.message);
+      if (__DEV__) console.log('Error fetching cart products', error?.message);
     }
   }, []);
 
@@ -135,7 +135,7 @@ const HomePopularProduct = ({
         showErrorMessage('Unable to add product to cart. Please try again.');
       }
     } catch (e) {
-      console.log('Error adding to cart:', e);
+      if (__DEV__) console.log('Error adding to cart:', e);
       showErrorMessage('Unable to add product to cart. Please try again.');
     }
   };
@@ -152,7 +152,7 @@ const HomePopularProduct = ({
         }
       }
     } catch (error) {
-      console.log('Error fetching wishlist', error);
+      if (__DEV__) console.log('Error fetching wishlist', error);
     }
   };
 
@@ -162,13 +162,17 @@ const HomePopularProduct = ({
     }, []),
   );
 
+  const wishlistIds = useMemo(
+    () => new Set(wishlist.map(item => item.product?._id).filter(Boolean)),
+    [wishlist],
+  );
+
   const isItemInWishlist = productId => {
     // First check local updates
     if (localWishlistUpdates[productId] !== undefined) {
       return localWishlistUpdates[productId];
     }
-    // Then check the actual wishlist
-    return wishlist.some(item => item.product?._id === productId);
+    return wishlistIds.has(productId);
   };
 
   const handleSaveToWishList = async product => {
@@ -241,7 +245,7 @@ const HomePopularProduct = ({
       // Refresh wishlist to sync with server
       await fetchWishlist();
     } catch (error) {
-      console.log('Error updating wishlist', error);
+      if (__DEV__) console.log('Error updating wishlist', error);
       showErrorMessage(
         error.message ? error.message : 'Error updating wishlist',
       );
@@ -283,52 +287,58 @@ const HomePopularProduct = ({
           const inCart = isItemInCart(item?._id);
 
           if (isBuyItWith) {
+            const buyItWithCard = (
+              <PressableScale
+                style={[styles.item, styles.buyItWithItem]}
+                onPress={() => navigation.push('ProductDetails', { item })}
+              >
+                <View style={[styles.imageHolder, styles.buyItWithImageHolder]}>
+                  <ProductImage product={item} style={styles.image} />
+                </View>
+                <View style={[styles.textHolder, styles.buyItWithTextHolder]}>
+                  <Text
+                    numberOfLines={2}
+                    style={[styles.title, styles.buyItWithTitle]}
+                  >
+                    {title || item?.name}
+                  </Text>
+                  <View style={styles.priceRow}>
+                    {showMrp && (
+                      <Text style={styles.mrpText}>
+                        {formatCardPrice(tier.MRP)}
+                      </Text>
+                    )}
+                    <Text style={[styles.priceText, styles.buyItWithPriceText]}>
+                      {formatCardPrice(tier.SP)}
+                    </Text>
+                  </View>
+                </View>
+                <TouchableOpacity
+                  style={[styles.heartIconHolder, styles.buyItWithHeartIconHolder]}
+                  onPress={() => handleSaveToWishList(item)}
+                >
+                  <Pop trigger={isItemInWishlist(item?._id)} peak={1.35}>
+                    <AntDesign
+                      name={isItemInWishlist(item?._id) ? 'heart' : 'hearto'}
+                      size={moderateScale(16)}
+                      color={
+                        isItemInWishlist(item?._id)
+                          ? Colors.red
+                          : Colors.text_grey
+                      }
+                    />
+                  </Pop>
+                </TouchableOpacity>
+              </PressableScale>
+            );
+
             return (
               <React.Fragment key={item?._id || index}>
-                <FadeInUp delay={Math.min(index, 6) * 70}>
-                  <PressableScale
-                    style={[styles.item, styles.buyItWithItem]}
-                    onPress={() => navigation.push('ProductDetails', { item })}
-                  >
-                    <View style={[styles.imageHolder, styles.buyItWithImageHolder]}>
-                      <ProductImage product={item} style={styles.image} />
-                    </View>
-                    <View style={[styles.textHolder, styles.buyItWithTextHolder]}>
-                      <Text
-                        numberOfLines={2}
-                        style={[styles.title, styles.buyItWithTitle]}
-                      >
-                        {title || item?.name}
-                      </Text>
-                      <View style={styles.priceRow}>
-                        {showMrp && (
-                          <Text style={styles.mrpText}>
-                            {formatCardPrice(tier.MRP)}
-                          </Text>
-                        )}
-                        <Text style={[styles.priceText, styles.buyItWithPriceText]}>
-                          {formatCardPrice(tier.SP)}
-                        </Text>
-                      </View>
-                    </View>
-                    <TouchableOpacity
-                      style={[styles.heartIconHolder, styles.buyItWithHeartIconHolder]}
-                      onPress={() => handleSaveToWishList(item)}
-                    >
-                      <Pop trigger={isItemInWishlist(item?._id)} peak={1.35}>
-                        <AntDesign
-                          name={isItemInWishlist(item?._id) ? 'heart' : 'hearto'}
-                          size={moderateScale(16)}
-                          color={
-                            isItemInWishlist(item?._id)
-                              ? Colors.red
-                              : Colors.text_grey
-                          }
-                        />
-                      </Pop>
-                    </TouchableOpacity>
-                  </PressableScale>
-                </FadeInUp>
+                {index <= 5 ? (
+                  <FadeInUp delay={index * 70}>{buyItWithCard}</FadeInUp>
+                ) : (
+                  buyItWithCard
+                )}
                 {index < visibleProducts.length - 1 && (
                   <View style={styles.plusIconHolder}>
                     <Entypo
@@ -342,8 +352,7 @@ const HomePopularProduct = ({
             );
           }
 
-          return (
-            <FadeInUp key={item?._id || index} delay={Math.min(index, 6) * 70}>
+          const productCard = (
               <PressableScale
                 style={styles.item}
                 onPress={() => navigation.push('ProductDetails', { item })}
@@ -406,8 +415,13 @@ const HomePopularProduct = ({
                   </Text>
                 </TouchableOpacity>
               </PressableScale>
-            </FadeInUp>
-          );
+            );
+
+            return index <= 5 ? (
+              <FadeInUp key={item?._id || index} delay={index * 70}>{productCard}</FadeInUp>
+            ) : (
+              <React.Fragment key={item?._id || index}>{productCard}</React.Fragment>
+            );
         })}
       </ScrollView>
       {isBuyItWith && (

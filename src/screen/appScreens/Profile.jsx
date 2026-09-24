@@ -74,9 +74,8 @@ const Profile = route => {
 
   const handleLogout = async () => {
     showSuccessMessage('You have successfully logged out');
-    // Unlink this device from the account first (reads fcmToken from storage),
-    // then clear the session, so the previous user stops receiving pushes here.
     await unregisterFromPush();
+    ApiService.clearAuthToken();
     await StorageService.clear();
     navigation.replace('Drawer');
   };

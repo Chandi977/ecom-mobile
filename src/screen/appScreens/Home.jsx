@@ -132,7 +132,7 @@ const Home = () => {
       const response = await ApiService.HOME_PRODUCTS_SEARCH({ search: query });
       setSearchResults(response?.data || []);
     } catch (error) {
-      console.log('Search failed', error?.message);
+      if (__DEV__) console.log('Search failed', error?.message);
     }
   }, []);
 
@@ -159,7 +159,7 @@ const Home = () => {
       if (res?.isNeeded) setUpdateStoreUrl(res?.storeUrl);
     };
     checkHomeUpdate().catch(error => {
-      console.log('Version check failed:', error?.message);
+      if (__DEV__) console.log('Version check failed:', error?.message);
     });
   }, []);
 
@@ -178,7 +178,7 @@ const Home = () => {
       const [productResponse, brandResponse] = await Promise.all([
         ApiService.GET_ALL_PRODUCTS(),
         ApiService.GET_ALL_BRANDS().catch(error => {
-          console.log('Error fetching Brands', error?.message);
+          if (__DEV__) console.log('Error fetching Brands', error?.message);
           return null;
         }),
       ]);
@@ -190,19 +190,19 @@ const Home = () => {
         setAllProducts(productResponse.data);
       }
     } catch (error) {
-      console.log('Error fetching home catalog', error?.message);
+      if (__DEV__) console.log('Error fetching home catalog', error?.message);
     } finally {
       setLoadingProducts(false);
     }
   };
 
-  const getDropdownText = item => {
+  const getDropdownText = useCallback(item => {
     const brand =
       typeof item?.brand === 'object'
         ? item?.brand?.name
         : brandNameById[item?.brand] || 'Prem Packaging';
     return `${brand} - ${item?.name || ''} - ${item?.model || ''}`;
-  };
+  }, [brandNameById]);
 
   const handleSelectProduct = product => {
     navigation.navigate('ProductDetails', { item: product });
