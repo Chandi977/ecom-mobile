@@ -99,6 +99,7 @@ const Login = () => {
     try {
       await StorageService.setItem('authToken', accessToken);
       await StorageService.setItem('user_data', sessionUser);
+      ApiService.setAuthToken(accessToken);
 
       if (refreshToken) {
         await StorageService.setItem('refreshToken', refreshToken);

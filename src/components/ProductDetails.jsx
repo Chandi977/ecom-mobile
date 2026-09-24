@@ -11,7 +11,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import Colors from '../utils/Colors';
 import { useNavigation } from '@react-navigation/core';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -265,7 +265,7 @@ const ProductDetails = ({ route }) => {
         setItem(prev => ({ ...prev, ...response.data }));
       }
     } catch (error) {
-      console.log('Error refreshing product detail:', error?.message);
+      if (__DEV__) console.log('Error refreshing product detail:', error?.message);
     }
   };
 
@@ -290,7 +290,7 @@ const ProductDetails = ({ route }) => {
       }
       setCrossCategoryProducts(cross);
     } catch (error) {
-      console.log('Error fetching cross category products:', error);
+      if (__DEV__) console.log('Error fetching cross category products:', error);
     }
     setIsCrossLoading(false);
   };
@@ -302,7 +302,7 @@ const ProductDetails = ({ route }) => {
         setWishlist(parseStoredUser(storedWishlist));
       }
     } catch (error) {
-      console.log('Error loading wishlist', error);
+      if (__DEV__) console.log('Error loading wishlist', error);
     }
   };
 
@@ -319,7 +319,7 @@ const ProductDetails = ({ route }) => {
         }
       }
     } catch (error) {
-      console.log('Error fetching wishlist', error);
+      if (__DEV__) console.log('Error fetching wishlist', error);
     }
   };
 
@@ -345,7 +345,7 @@ const ProductDetails = ({ route }) => {
         setSelectedLabelVariant(variants.length > 0 ? variants[0] : null);
       }
     } catch (error) {
-      console.log('Error fetching label variants:', error);
+      if (__DEV__) console.log('Error fetching label variants:', error);
     }
   };
 
@@ -367,13 +367,16 @@ const ProductDetails = ({ route }) => {
     }, []),
   );
 
+  const wishlistIds = useMemo(
+    () => new Set(wishlist.map(item => item.product?._id).filter(Boolean)),
+    [wishlist],
+  );
+
   const isItemInWishlist = productId => {
-    // First check local updates
     if (localWishlistUpdates[productId] !== undefined) {
       return localWishlistUpdates[productId];
     }
-    // Then check the actual wishlist
-    return wishlist.some(item => item.product?._id === productId);
+    return wishlistIds.has(productId);
   };
 
   const fetchSingleProduct = async () => {
@@ -382,12 +385,12 @@ const ProductDetails = ({ route }) => {
     const buyItProducts = [];
     if (item?.buyItWith?.length > 0) {
       for (const buyItProduct of item?.buyItWith) {
-        console.log(buyItProduct?._id, 'Line 121');
+        if (__DEV__) console.log(buyItProduct?._id, 'Line 121');
         try {
           const response = await ApiService.GET_SINGLE_PRODUCT(buyItProduct);
           buyItProducts.push(response?.data);
         } catch (error) {
-          console.log(error, 'Line 106');
+          if (__DEV__) console.log(error, 'Line 106');
         }
       }
       setBuyItWithProduct(buyItProducts);
@@ -396,7 +399,7 @@ const ProductDetails = ({ route }) => {
   };
 
   const handleSaveToWishList = async product => {
-    console.log(product, 'line 187');
+    if (__DEV__) console.log(product, 'line 187');
     const user = await StorageService.getItem('user_data');
     if (!user) {
       setShowLoginPopup(true);
@@ -463,7 +466,7 @@ const ProductDetails = ({ route }) => {
       // Refresh wishlist to sync with server
       await fetchWishlist();
     } catch (error) {
-      console.log('Error updating wishlist', error);
+      if (__DEV__) console.log('Error updating wishlist', error);
       showErrorMessage('Error updating wishlist');
     }
   };
@@ -481,7 +484,7 @@ const ProductDetails = ({ route }) => {
           );
           if (response?.data) fetchedProducts.push(response.data);
         } catch (error) {
-          console.log('Error fetching related product:', error);
+          if (__DEV__) console.log('Error fetching related product:', error);
         }
       }
     }
@@ -499,7 +502,7 @@ const ProductDetails = ({ route }) => {
         );
         fetchedProducts = sameCat.slice(0, 5);
       } catch (error) {
-        console.log('Error fetching fallback related products:', error);
+        if (__DEV__) console.log('Error fetching fallback related products:', error);
       }
     }
 
@@ -548,7 +551,7 @@ const ProductDetails = ({ route }) => {
       const cart = await CartService.getCart();
       setIsAddedToCart((cart || []).some(isMatchingCartLine));
     } catch (error) {
-      console.log('Error checking cart status:', error?.message);
+      if (__DEV__) console.log('Error checking cart status:', error?.message);
       setIsAddedToCart(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -619,7 +622,7 @@ const ProductDetails = ({ route }) => {
         showErrorMessage('Unable to add product to cart. Please try again.');
       }
     } catch (e) {
-      console.log('Error adding to cart:', e?.message);
+      if (__DEV__) console.log('Error adding to cart:', e?.message);
       showErrorMessage('Unable to add product to cart. Please try again.');
     } finally {
       setIsAddingToCart(false);
@@ -641,12 +644,12 @@ const ProductDetails = ({ route }) => {
   };
 
   const handleDecreaseItemQuantity = async () => {
-    console.log('Clicked on the Decrease Button');
+    if (__DEV__) console.log('Clicked on the Decrease Button');
     count > 1 ? setCount(count - 1) : null;
   };
 
   const handleIncreaseItemQuantity = async () => {
-    console.log('Clicked on the Increase Button');
+    if (__DEV__) console.log('Clicked on the Increase Button');
     setCount(count + 1);
   };
 
@@ -706,6 +709,7 @@ const ProductDetails = ({ route }) => {
                 uri={bigImage || getProductImageUri(item)}
                 style={styles.imageStyle}
                 resizeMode={FastImage.resizeMode.contain}
+                priority={FastImage.priority.high}
                 onLoadStart={() => setImageLoading(true)}
                 onLoadEnd={() => setImageLoading(false)}
               />
@@ -1263,7 +1267,7 @@ const ProductDetails = ({ route }) => {
             message={'Choose Pack Size'}
             hideModal={() => setShowPackSizeModal(false)}
             selectedValue={text => {
-              console.log(text, 'Line 546');
+              if (__DEV__) console.log(text, 'Line 546');
               setMrp(text?.MRP);
               setSp(text?.SP);
               setNumber(text?.number);

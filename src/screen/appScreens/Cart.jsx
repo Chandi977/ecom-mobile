@@ -89,7 +89,7 @@ export default function Cart() {
 
       setLoading(false);
     } catch (e) {
-      console.log('Error fetching data:', e);
+      if (__DEV__) console.log('Error fetching data:', e);
       setInitialLoading(false);
     }
   };
@@ -100,7 +100,7 @@ export default function Cart() {
       setCartProducts(guestCart);
       setShowClearCart(guestCart.length > 0);
     } catch (e) {
-      console.log('Error loading guest cart:', e);
+      if (__DEV__) console.log('Error loading guest cart:', e);
     }
   };
 
@@ -148,7 +148,7 @@ export default function Cart() {
     };
     try {
       const response = await ApiService.EMPTY_CART(data);
-      console.log(response);
+        if (__DEV__) console.log(response);
       if (response?.success) {
         setCartProducts([]);
         setShowClearCart(false);
@@ -157,7 +157,7 @@ export default function Cart() {
         Alert.alert('Cart', 'Your cart is empty!!', [{ text: 'OK' }]);
       }
     } catch (e) {
-      console.log(e);
+      if (__DEV__) console.log(e);
     }
   };
 
@@ -198,7 +198,7 @@ export default function Cart() {
         // ]);
       }
     } catch (e) {
-      console.log(e);
+      if (__DEV__) console.log(e);
     }
   };
   const handleCheckOut = async () => {
@@ -213,7 +213,7 @@ export default function Cart() {
       );
       return;
     }
-    console.log('Clicked on the Process to checkout');
+    if (__DEV__) console.log('Clicked on the Process to checkout');
     // navigation.navigate("Checkout", {
     //   cartProducts: cartProducts,
     //   user: user,
@@ -293,7 +293,7 @@ export default function Cart() {
     );
 
   } catch (error) {
-    console.log('Coupon Error:', error.response);
+    if (__DEV__) console.log('Coupon Error:', error.response);
 
     showErrorMessage('Invalid Coupon code');
   }
@@ -336,45 +336,53 @@ export default function Cart() {
               ) : cartProducts.length > 0 ? (
                 <View>
                   {cartProducts.map((item, index) => {
-                    return (
-                      <FadeInUp key={index} delay={Math.min(index, 6) * 60}>
-                        <View style={styles.card}>
-                          <View style={styles.cartImageHolder}>
-                            <ProductImage
-                              product={item?.product}
-                              style={styles.cartImage}
-                              resizeMode={FastImage.resizeMode.cover}
-                            />
-                          </View>
-                          <View style={{ width: '50%' }}>
-                            <Text style={styles.itemName}>
-                              {item?.product?.name}
-                              {''}({item?.product?.size_inch} inches)
-                            </Text>
-                            {/* Count Holder */}
-                            <View style={styles.countHolder}>
-                              <Text style={styles.quantityText}>
-                                {item?.quantity}
-                              </Text>
-                              <Text
-                                style={{ color: 'gray', textAlign: 'center' }}
-                              >
-                                |
-                              </Text>
-
-                              <TouchableOpacity
-                                onPress={() => removeItemFromCart(item)}
-                              >
-                                <Text style={styles.deleteText}>Delete</Text>
-                              </TouchableOpacity>
-                            </View>
-                          </View>
-                          <Text style={styles.priceText}>
-                            ₹ {item?.quantity * item.price || '0'}
-                          </Text>
+                    const cartRow = (
+                      <View style={styles.card}>
+                        <View style={styles.cartImageHolder}>
+                          <ProductImage
+                            product={item?.product}
+                            style={styles.cartImage}
+                            resizeMode={FastImage.resizeMode.cover}
+                          />
                         </View>
+                        <View style={{ width: '50%' }}>
+                          <Text style={styles.itemName}>
+                            {item?.product?.name}
+                            {''}({item?.product?.size_inch} inches)
+                          </Text>
+                          {/* Count Holder */}
+                          <View style={styles.countHolder}>
+                            <Text style={styles.quantityText}>
+                              {item?.quantity}
+                            </Text>
+                            <Text
+                              style={{ color: 'gray', textAlign: 'center' }}
+                            >
+                              |
+                            </Text>
+
+                            <TouchableOpacity
+                              onPress={() => removeItemFromCart(item)}
+                            >
+                              <Text style={styles.deleteText}>Delete</Text>
+                            </TouchableOpacity>
+                          </View>
+                        </View>
+                        <Text style={styles.priceText}>
+                          ₹ {item?.quantity * item.price || '0'}
+                        </Text>
+                      </View>
+                    );
+
+                    return (
+                      <React.Fragment key={index}>
+                        {index <= 5 ? (
+                          <FadeInUp delay={index * 60}>{cartRow}</FadeInUp>
+                        ) : (
+                          cartRow
+                        )}
                         <View style={styles.divider} />
-                      </FadeInUp>
+                      </React.Fragment>
                     );
                   })}
                   <View style={styles.cartTotalHolder}>

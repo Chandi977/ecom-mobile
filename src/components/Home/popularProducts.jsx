@@ -7,7 +7,7 @@ import {
   FlatList,
   ActivityIndicator,
 } from "react-native";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import Colors from "../../utils/Colors";
 import AntDesign from "react-native-vector-icons/AntDesign";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -65,7 +65,7 @@ export default function PopularProducts({
         }
       }
     } catch (error) {
-      console.log("Error fetching wishlist", error);
+      if (__DEV__) console.log("Error fetching wishlist", error);
     }
   };
 
@@ -76,7 +76,7 @@ export default function PopularProducts({
         new Set((cart || []).map(getLineProductId).filter(Boolean)),
       );
     } catch (error) {
-      console.log("Error fetching cart products", error?.message);
+      if (__DEV__) console.log("Error fetching cart products", error?.message);
     }
   }, []);
 
@@ -87,11 +87,16 @@ export default function PopularProducts({
     }, [fetchCartProducts])
   );
 
+  const wishlistIds = useMemo(
+    () => new Set(wishlist.map((item) => item.product?._id).filter(Boolean)),
+    [wishlist],
+  );
+
   const isItemInWishlist = (productId) => {
     if (localWishlistUpdates[productId] !== undefined) {
       return localWishlistUpdates[productId];
     }
-    return wishlist.some((item) => item.product?._id === productId);
+    return wishlistIds.has(productId);
   };
 
   const handleAddToCart = async (product) => {
@@ -118,7 +123,7 @@ export default function PopularProducts({
         });
       }
     } catch (e) {
-      console.log("Error adding to cart:", e);
+      if (__DEV__) console.log("Error adding to cart:", e);
       showMessage({
         message: "Unable to add product to cart. Please try again.",
         type: "danger",
@@ -185,7 +190,7 @@ export default function PopularProducts({
 
       await fetchWishlist();
     } catch (error) {
-      console.log("Error updating wishlist", error);
+      if (__DEV__) console.log("Error updating wishlist", error);
       showMessage({
         message: error.message || "Error updating wishlist",
         type: "danger",
